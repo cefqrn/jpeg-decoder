@@ -47,7 +47,7 @@ int parse_SOS(jpeg_data *imageData, fp) {
 
 }
 
-int parse_segment(jpeg_data imageData, FILE *fp) {
+int parse_segment(jpeg_data *imageData, FILE *fp) {
     uint16_t marker = READ_WORD(fp);
 
     // markers that don't indicate their length
@@ -83,7 +83,16 @@ image *jpg_fparse(char *path) {
         return NULL;
     }
 
-    while (jpg_parse_segment(fp) == 0);
+    jpeg_data *imageData = calloc(1, sizeof *imageData);
+
+    int exit_code;
+    while ((exit_code = jpg_parse_segment(imageData, fp)) == 0);
 
     fclose(fp);
+
+    if (exit_code != 1) {
+        puts("Could not parse jpeg.");
+    }
+
+    return jpeg_to_image(imageData);
 }
