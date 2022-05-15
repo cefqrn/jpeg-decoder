@@ -39,12 +39,14 @@ typedef struct jpeg_data {
 
 static int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
     // not implemented
+
+    return -1;
 }
 
 static int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
     imageData->precision = data[0];
-    imageData->height = data[1] << CHAR_SIZE + data[2];
-    imageData->width = data[3] << CHAR_SIZE + data[4];
+    imageData->height = (data[1] << CHAR_SIZE) + data[2];
+    imageData->width = (data[3] << CHAR_SIZE) + data[4];
     imageData->componentCount = data[5];
 
     imageData->componentData = malloc(imageData->componentCount * sizeof *imageData->componentData);
@@ -64,14 +66,20 @@ static int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
 
 static int parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
     // not implemented
+
+    return -1;
 }
 
 static int parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
     // not implemented
+
+    return -1;
 }
 
 static int parse_SOS(jpeg_data *imageData, FILE *fp) {
     // not implemented
+
+    return -1;
 }
 
 static int parse_segment(jpeg_data *imageData, FILE *fp) {
@@ -100,6 +108,8 @@ static int parse_segment(jpeg_data *imageData, FILE *fp) {
 
 static image *jpeg_to_image(jpeg_data *data) {
     // not implemented
+
+    return NULL;
 }
 
 static void free_jpeg(jpeg_data *data) {
@@ -121,7 +131,7 @@ image *jpg_fparse(char *path) {
     jpeg_data *imageData = calloc(1, sizeof *imageData);
 
     int exit_code;
-    while ((exit_code = jpg_parse_segment(imageData, fp)) == 0);
+    while ((exit_code = parse_segment(imageData, fp)) == 0);
 
     fclose(fp);
 
@@ -134,7 +144,7 @@ image *jpg_fparse(char *path) {
     
     free_jpeg(imageData);
 
-    return jpeg_to_image(imageData);
+    return im;
 }
 
 void free_image(image *im) {
