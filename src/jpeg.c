@@ -9,10 +9,10 @@
 typedef enum SegmentMarker {
     SOI = 0xFFD8,
     APP0 = 0xFFE0,
-    SOS = 0xFFDA,
+    SOF = 0xFFC0,
     DHT = 0xFFC4,
     DQT = 0xFFDB,
-    SOF = 0xFFC0,
+    SOS = 0xFFDA,
 } SegmentMarker;
 
 typedef struct image {
@@ -31,7 +31,7 @@ int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
     
 }
 
-int parse_SOS(jpeg_data *imageData, uint8_t *data, size_t length) {
+int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
     
 }
 
@@ -43,7 +43,7 @@ int parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
     
 }
 
-int parse_SOF(jpeg_data *imageData, fp) {
+int parse_SOS(jpeg_data *imageData, fp) {
 
 }
 
@@ -53,7 +53,7 @@ int parse_segment(jpeg_data imageData, FILE *fp) {
     // markers that don't indicate their length
     switch (marker) {
         case SOI: return 0;
-        case SOF: return parse_SOF(imageData, fp);
+        case SOS: return parse_SOF(imageData, fp);
     }
 
     size_t length = READ_WORD(fp) - WORD_SIZE;
@@ -62,7 +62,7 @@ int parse_segment(jpeg_data imageData, FILE *fp) {
 
     switch (marker) {
         case APP0: return parse_APP0(imageData, data, length);
-        case SOS: return parse_SOS(imageData, data, length);
+        case SOF: return parse_SOS(imageData, data, length);
         case DHT: return parse_DHT(imageData, data, length);
         case DQT: return parse_DQT(imageData, data, length);
     }
