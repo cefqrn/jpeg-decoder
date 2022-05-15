@@ -21,10 +21,19 @@ typedef struct image {
     uint8_t (**pixels)[3]; // RGB
 } image;
 
+typedef struct component_data {
+    uint8_t vSamplingFactor:4;
+    uint8_t hSamplingFactor:4;
+    uint8_t qTableId;
+} component_data;
+
 typedef struct jpeg_data {
     uint16_t width;
     uint16_t height;
     uint8_t (**pixels)[3]; // YCbCr
+    uint8_t precision;
+    uint8_t componentCount;
+    component_data *componentData[3];
 } jpeg_data;
 
 static int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
@@ -32,7 +41,17 @@ static int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
 }
 
 static int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
-    // not implemented
+    imageData->precision = data[0];
+    imageData->height = data[1] << CHAR_SIZE + data[2];
+    imageData->width = data[3] << CHAR_SIZE + data[4];
+    imageData->componentCount = data[5];
+
+    for (int i=0; i < imageData->componentCount; ++i) {
+        component_data *componentData = malloc(sizeof *componentData);
+        imageData->componentData[i] = componentData;
+    }
+
+    return 0;
 }
 
 static int parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
@@ -50,7 +69,7 @@ static int parse_SOS(jpeg_data *imageData, FILE *fp) {
 static int parse_segment(jpeg_data *imageData, FILE *fp) {
     uint16_t marker = READ_WORD(fp);
 
-    // markers that don't indicate their length
+    // segments that don't indicate their length
     switch (marker) {
         case SOI: return 0;
         case SOS: return parse_SOS(imageData, fp);
@@ -75,6 +94,13 @@ static image *jpeg_to_image(jpeg_data *data) {
     // not implemented
 }
 
+static void free_jpeg(jpeg_data *data) {
+    for (int i=0; i < data->componentCount; ++i) {
+        free(data->componentData[i]);
+    }
+    free(data);
+}
+
 image *jpg_fparse(char *path) {
     FILE *fp = fopen(path, "r");
 
@@ -97,7 +123,7 @@ image *jpg_fparse(char *path) {
 
     image *im = jpeg_to_image(imageData);
     
-    free(imageData);
+    free_jpeg(imageData);
 
     return jpeg_to_image(imageData);
 }
