@@ -22,6 +22,7 @@ typedef struct image {
 } image;
 
 typedef struct component_data {
+    uint8_t id;
     uint8_t vSamplingFactor:4;
     uint8_t hSamplingFactor:4;
     uint8_t qTableId;
@@ -33,7 +34,7 @@ typedef struct jpeg_data {
     uint8_t (**pixels)[3]; // YCbCr
     uint8_t precision;
     uint8_t componentCount;
-    component_data *componentData[3];
+    component_data **componentData;
 } jpeg_data;
 
 static int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
@@ -46,8 +47,15 @@ static int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
     imageData->width = data[3] << CHAR_SIZE + data[4];
     imageData->componentCount = data[5];
 
+    imageData->componentData = malloc(imageData->componentCount * sizeof *imageData->componentData);
     for (int i=0; i < imageData->componentCount; ++i) {
         component_data *componentData = malloc(sizeof *componentData);
+
+        componentData->id = data[6 + i*3];
+        componentData->vSamplingFactor = data[7 + i*3] >> 4;
+        componentData->hSamplingFactor = data[7 + i*3] & 0xF;
+        componentData->qTableId = data[8 + i*3] & 0xF;
+
         imageData->componentData[i] = componentData;
     }
 
@@ -98,6 +106,7 @@ static void free_jpeg(jpeg_data *data) {
     for (int i=0; i < data->componentCount; ++i) {
         free(data->componentData[i]);
     }
+    free(data->componentData);
     free(data);
 }
 
