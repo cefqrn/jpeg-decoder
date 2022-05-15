@@ -27,27 +27,27 @@ typedef struct jpeg_data {
     uint8_t (**pixels)[3]; // YCbCr
 } jpeg_data;
 
-int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
-    
+static int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
+    // not implemented
 }
 
-int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
-    
+static int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
+    // not implemented
 }
 
-int parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
-    
+static int parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
+    // not implemented
 }
 
-int parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
-    
+static int parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
+    // not implemented
 }
 
-int parse_SOS(jpeg_data *imageData, FILE *fp) {
-
+static int parse_SOS(jpeg_data *imageData, FILE *fp) {
+    // not implemented
 }
 
-int parse_segment(jpeg_data *imageData, FILE *fp) {
+static int parse_segment(jpeg_data *imageData, FILE *fp) {
     uint16_t marker = READ_WORD(fp);
 
     // markers that don't indicate their length
@@ -71,16 +71,8 @@ int parse_segment(jpeg_data *imageData, FILE *fp) {
     return -1;
 }
 
-image *jpeg_to_image(jpeg_data *data) {
-    
-}
-
-void free_image(image *im) {
-    for (size_t i=0; i < im->width; ++i) {
-        free(im->pixels[i]);
-    }
-    free(im->pixels);
-    free(im);
+static image *jpeg_to_image(jpeg_data *data) {
+    // not implemented
 }
 
 image *jpg_fparse(char *path) {
@@ -108,4 +100,12 @@ image *jpg_fparse(char *path) {
     free(imageData);
 
     return jpeg_to_image(imageData);
+}
+
+void free_image(image *im) {
+    for (size_t i=0; i < im->width; ++i) {
+        free(im->pixels[i]);
+    }
+    free(im->pixels);
+    free(im);
 }

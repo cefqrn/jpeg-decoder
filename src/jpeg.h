@@ -10,5 +10,6 @@ typedef struct image {
 } image;
 
 image *jpg_fparse(char *path);
+void free_image(image *im);
 
 #endif
