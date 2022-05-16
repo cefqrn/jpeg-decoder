@@ -11,7 +11,7 @@ srcdir = src
 
 objects = $(libdir)/test.o $(libdir)/jpeg.o
 
-all: $(bindir)/main
+all: $(bindir)/test
 
 $(bindir)/test: $(objects)
 	$(CC) $(CFLAGS) $^ -o $@
