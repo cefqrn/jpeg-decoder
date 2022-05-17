@@ -6,10 +6,10 @@
 typedef struct image {
     uint16_t width;
     uint16_t height;
-    uint8_t (**pixels)[3]
+    uint8_t (**pixels)[3];
 } image;
 
 image *jpg_fparse(char *path);
-void free_image(image *im);
+void jpg_free_image(image *im);
 
 #endif

@@ -1,9 +1,10 @@
+#include "hufftree.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #define CHAR_SIZE 8
-#define WORD_SIZE 2 * CHAR_SIZE
+#define WORD_SIZE 2
 #define READ_WORD(fp) getc(fp) << CHAR_SIZE | getc(fp)
 #define GET_WORD(data, index) (data[index] << CHAR_SIZE) + data[index + 1]
 
@@ -41,11 +42,12 @@ typedef struct jpeg_data {
     uint8_t precision;
     uint8_t componentCount;
     component_data **componentData;
+    huff_tree *huffTrees[2][2];
 } jpeg_data;
 
 static int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
     if ((imageData->versionMajor = data[5]) != 1) {
-        puts("Invalid major version number.");
+        printf("Invalid major version number: %d\n", imageData->versionMajor);
         return -1;
     }
 
@@ -54,7 +56,7 @@ static int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
     imageData->hPixelDensity = GET_WORD(data, 8);
     imageData->vPixelDensity = GET_WORD(data, 10);
 
-    return -1;
+    return 0;
 }
 
 static int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
@@ -79,15 +81,19 @@ static int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
 }
 
 static int parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
-    // not implemented
+    size_t offset = 0;
+    while (offset < length - 150) {
+        huff_tree *tree = huf_parse_huff_tree(data, &offset);
+        imageData->huffTrees[huf_get_huff_tree_class(tree)][huf_get_huff_tree_id(tree)] = tree;
+    }
 
-    return -1;
+    return 0;
 }
 
 static int parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
     // not implemented
 
-    return -1;
+    return 0;
 }
 
 static int parse_SOS(jpeg_data *imageData, FILE *fp) {
@@ -107,7 +113,7 @@ static int parse_segment(jpeg_data *imageData, FILE *fp) {
 
     size_t length = READ_WORD(fp) - WORD_SIZE;
     uint8_t *data = malloc(length * sizeof *data);
-    fread(data, length, sizeof(uint8_t), fp);
+    fread(data, sizeof(*data), length, fp);
 
     switch (marker) {
         case APP0: return parse_APP0(imageData, data, length);
@@ -116,7 +122,6 @@ static int parse_segment(jpeg_data *imageData, FILE *fp) {
         case DQT: return parse_DQT(imageData, data, length);
     }
 
-    printf("Could not identify marker: %04X", marker);
     return -1;
 }
 
@@ -136,6 +141,12 @@ static void free_jpeg(jpeg_data *data) {
         free(data->pixels[x]);
     }
     free(data->pixels);
+
+    for (size_t i=0; i < 2; ++i) {
+        for (size_t j=0; j < 2; ++j) {
+            huf_free_huff_tree(data->huffTrees[i][j]);
+        }
+    }
 
     free(data);
 }
@@ -167,7 +178,7 @@ image *jpg_fparse(char *path) {
     return im;
 }
 
-void free_image(image *im) {
+void jpg_free_image(image *im) {
     for (size_t i=0; i < im->width; ++i) {
         free(im->pixels[i]);
     }
