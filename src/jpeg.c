@@ -82,7 +82,7 @@ static int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
 
 static int parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
     size_t offset = 0;
-    while (offset < length - 150) {
+    while (offset < length) {
         huff_tree *tree = huf_parse_huff_tree(data, &offset);
         imageData->huffTrees[huf_get_huff_tree_class(tree)][huf_get_huff_tree_id(tree)] = tree;
     }
@@ -93,7 +93,7 @@ static int parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
 static int parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
     // not implemented
 
-    return 0;
+    return -1;
 }
 
 static int parse_SOS(jpeg_data *imageData, FILE *fp) {
