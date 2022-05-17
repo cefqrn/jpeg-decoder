@@ -1,8 +1,8 @@
 #ifndef HUFFTREE_H
 #define HUFFTREE_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct huff_tree huff_tree;
 

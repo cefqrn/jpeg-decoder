@@ -55,7 +55,7 @@ huff_tree *huf_parse_huff_tree(uint8_t *data, size_t *offset) {
 
     huff_tree *tree = malloc(sizeof *tree);
     tree->root = root;
-    tree->class = data[initialOffset] & 0x10 >> 5;
+    tree->class = (data[initialOffset] & 0x10) >> 4;
     tree->id = data[initialOffset] & 0x1;
 
     *offset += CODE_LENGTH_COUNT + 1; // move offset after the code lengths

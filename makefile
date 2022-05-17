@@ -9,7 +9,7 @@ bindir = bin
 libdir = obj
 srcdir = src
 
-objects = $(libdir)/test.o $(libdir)/jpeg.o $(libdir)/hufftree.o
+objects = $(libdir)/test.o $(libdir)/jpeg.o $(libdir)/hufftree.o $(libdir)/quanttable.o
 
 all: $(bindir)/test
 

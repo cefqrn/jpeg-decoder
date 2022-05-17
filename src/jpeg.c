@@ -1,3 +1,4 @@
+#include "quanttable.h"
 #include "hufftree.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -43,6 +44,7 @@ typedef struct jpeg_data {
     uint8_t componentCount;
     component_data **componentData;
     huff_tree *huffTrees[2][2];
+    quant_table *quantTables[2];
 } jpeg_data;
 
 static int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
@@ -91,9 +93,10 @@ static int parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
 }
 
 static int parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
-    // not implemented
+    quant_table *table = qnt_parse_quant_table(data);
+    imageData->quantTables[qnt_get_quant_table_number(table)] = table;
 
-    return -1;
+    return 0;
 }
 
 static int parse_SOS(jpeg_data *imageData, FILE *fp) {
@@ -122,7 +125,7 @@ static int parse_segment(jpeg_data *imageData, FILE *fp) {
         case DQT: return parse_DQT(imageData, data, length);
     }
 
-    return -1;
+    return 0;
 }
 
 static image *jpeg_to_image(jpeg_data *data) {
@@ -146,6 +149,10 @@ static void free_jpeg(jpeg_data *data) {
         for (size_t j=0; j < 2; ++j) {
             huf_free_huff_tree(data->huffTrees[i][j]);
         }
+    }
+
+    for (size_t i=0; i < 2; ++i) {
+        qnt_free_quant_table(data->quantTables[i]);
     }
 
     free(data);
