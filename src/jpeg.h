@@ -12,4 +12,6 @@ typedef struct image {
 image *jpg_fparse(char *path);
 void jpg_free_image(image *im);
 
+uint8_t ***jpg_get_image_pixels(image *im);
+
 #endif
