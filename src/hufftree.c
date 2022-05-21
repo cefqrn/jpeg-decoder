@@ -1,17 +1,18 @@
+#include "stream.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#define CHAR_SIZE 8
 #define CODE_LENGTH_COUNT 16
 
 typedef struct huff_node {
     struct huff_node *left;
     struct huff_node *right;
+    uint8_t symbol;
     bool hasLeft;
     bool hasRight;
-    uint8_t symbol;
+    bool hasSymbol;
 } huff_node;
 
 typedef struct huff_tree {
@@ -46,6 +47,7 @@ static void add_symbol_to_huff_node(huff_node *root, uint16_t code, int codeLeng
     }
 
     curr->symbol = symbol;
+    curr->hasSymbol = true;
 }
 
 huff_tree *huf_parse_huff_tree(uint8_t *data, size_t *offset) {
@@ -102,7 +104,12 @@ static void print_huff_node(huff_node *node, int depth) {
     for (int i=0; i < depth; ++i) {
         printf("  ");
     }
-    printf("%02X\n", node->symbol);
+    if (node->hasSymbol) {
+        printf("%02X\n", node->symbol);
+    } else {
+        printf("");
+    }
+    
 
     if (node->hasRight) {
         print_huff_node(node->right, depth + 1);
@@ -120,4 +127,27 @@ uint8_t huf_get_huff_tree_class(huff_tree *tree) {
 
 uint8_t huf_get_huff_tree_id(huff_tree *tree) {
     return tree->id;
+}
+
+int huf_decode_next_symbol(huff_tree *tree, stream *str) {
+    // returns the decoded symbols from a stream using the passed huff_tree
+
+    huff_node *curr = tree->root;
+
+    while (!curr->hasSymbol) {
+        switch (str_get_bit(str)) {
+            case 1:
+                if (!curr->hasRight) return -1;
+                curr = curr->right;
+                break;
+            case 0:
+                if (!curr->hasLeft) return -1;
+                curr = curr->left;
+                break;
+            default:
+                return -1;
+        }
+    }
+
+    return curr->symbol;
 }
