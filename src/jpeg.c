@@ -1,6 +1,7 @@
 #include "quanttable.h"
 #include "hufftree.h"
 #include "stream.h"
+#include "image.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -37,17 +38,12 @@ typedef enum SegmentMarker {
     SOS = 0xFFDA,
 } SegmentMarker;
 
-typedef enum TableId {
-    TABLE_ID_Y = 0,
-    TABLE_ID_CBCR = 1
-} TableId;
-
 typedef enum ComponentId {
-    ID_Y = 0,
-    ID_CB = 1,
-    ID_CR = 2,
-    // ID_I = 4,
-    // ID_Q = 5
+    ID_Y = 1,
+    ID_CB = 2,
+    ID_CR = 3,
+    ID_I = 4,
+    ID_Q = 5
 } ComponentId;
 
 typedef enum TableClass {
@@ -55,17 +51,12 @@ typedef enum TableClass {
     CLASS_AC = 1
 } TableClass;
 
-typedef struct image {
-    uint16_t width;
-    uint16_t height;
-    uint8_t (**pixels)[3]; // RGB
-} image;
-
 typedef struct component_data {
     uint8_t id;
     uint8_t vSamplingFactor:4;
     uint8_t hSamplingFactor:4;
     uint8_t qTableId;
+    uint8_t hTreeId;
 } component_data;
 
 typedef struct jpeg_data {
@@ -139,7 +130,10 @@ static int parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
 }
 
 static int parse_SOS(jpeg_data *imageData, uint8_t *data, size_t length) {
-    // not implemented
+    uint8_t componentCount = data[0];
+    for (size_t i=0; i < componentCount; ++i) {
+        imageData->componentData[i]->hTreeId = data[2 + i * 2] >> 4;
+    }
 
     return IMAGE_DATA_NEXT;
 }
@@ -167,26 +161,19 @@ static uint8_t clamp(int n) {
     return n < 0 ? 0 : n > 255 ? 255 : n;
 }
 
-static int decode_MCU(jpeg_data *imageData, image *im, stream *str, ComponentId id, int prevDcCoeff, size_t McuX, size_t McuY) {
-    int coeffVector[64];
-    memset(coeffVector, 0, 64 * sizeof *coeffVector);
+static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t componentIndex, int prevDcCoeff, size_t McuX, size_t McuY) {
+    int coeffVector[64] = {0};
 
-    TableId tableId;
-    switch (id)
-    {
-        case ID_Y:
-            tableId = TABLE_ID_Y;
-            break;
-        case ID_CB:
-        case ID_CR:
-            tableId = TABLE_ID_CBCR;
-    }
+    component_data *componentData = imageData->componentData[componentIndex];
 
-    prevDcCoeff = decode_dc_diff(imageData->huffTrees[tableId][CLASS_DC], str, prevDcCoeff);
-    coeffVector[0] = prevDcCoeff * qnt_get_quant_table_value(imageData->quantTables[tableId], 0);
+    huff_tree **huffTrees = imageData->huffTrees[componentData->hTreeId];
+    quant_table *quantTable = imageData->quantTables[componentData->qTableId];
+
+    prevDcCoeff = decode_dc_diff(huffTrees[CLASS_DC], str, prevDcCoeff);
+    coeffVector[0] = prevDcCoeff * qnt_get_quant_table_value(quantTable, 0);
 
     for (size_t i=1; i < 64; ++i) {
-        uint8_t value = huf_decode_next_symbol(imageData->huffTrees[tableId][CLASS_AC], str);
+        uint8_t value = huf_decode_next_symbol(huffTrees[CLASS_AC], str);
 
         if (!value)
             break;
@@ -194,7 +181,7 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, ComponentId 
         i += value >> 4; // skip zeroes
         uint8_t size = value & 0xF;
 
-        coeffVector[i] = decode_MCU_value(size, str_get_bits(str, size)) * qnt_get_quant_table_value(imageData->quantTables[tableId], i);
+        coeffVector[i] = decode_MCU_value(size, str_get_bits(str, size)) * qnt_get_quant_table_value(quantTable, i);
     }
 
     int coeffMatrix[8][8];
@@ -211,8 +198,8 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, ComponentId 
         }
     }
 
-    for (size_t x=0; x < 8; ++x) {
-        for (size_t y=0; y < 8; ++y) {
+    for (size_t x=0; x < 8 && McuX + x < imageData->width; ++x) {
+        for (size_t y=0; y < 8 && McuY + y < imageData->height; ++y) {
             double sum = 0;
             for (size_t u=0; u < imageData->precision; ++u) {
                 for (size_t v=0; v < imageData->precision; ++v) { 
@@ -223,26 +210,14 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, ComponentId 
             uint8_t value = clamp(round(sum/4 + 128));
             uint16_t globalX = McuX + x;
             uint16_t globalY = McuY + y;
+            // printf("%d, %d: %d (%d)\n", globalX, globalY, value, componentData->id);
 
-            switch (id)
-            {
-                case ID_Y:
-                    im->pixels[globalX][globalY][0] += value;
-                    im->pixels[globalX][globalY][1] += value;
-                    im->pixels[globalX][globalY][2] += value;
-                    break;
-                case ID_CB:
-                    im->pixels[globalX][globalY][1] -= 0.34414 * (value - 128);
-                    im->pixels[globalX][globalY][2] += 1.772 * (value - 128);
-                    break;
-                case ID_CR:
-                    im->pixels[globalX][globalY][0] += 1.402 * (value - 128);
-                    im->pixels[globalX][globalY][1] -= 0.71414 * (value - 128);
-                    break;
-            }
+            img_set_pixel(im, globalX, globalY, componentData->id - 1, value);
         }
     }
 
+    // fprintf(stderr, "%d\n", prevDcCoeff);
+    // puts("banana");
     return prevDcCoeff;
 }
 
@@ -254,25 +229,16 @@ static image *parse_image_data(jpeg_data *imageData, uint8_t *data, size_t lengt
         }
     }
 
+    image *im = img_create_image(imageData->width, imageData->height);
     stream *str = str_create_stream(data, length);
 
-    image *im = malloc(sizeof *im);
-    im->height = imageData->height;
-    im->width = imageData->width;
-    im->pixels = malloc(im->width * sizeof *im->pixels);
-    for (size_t i=0; i < im->width; ++i) {
-        im->pixels[i] = malloc(im->height * sizeof **im->pixels);
-    }
-
-    int prevYDcCoeff = 0;
-    int prevCbDcCoeff = 0;
-    int prevCrDcCoeff = 0;
-
-    for (int x=0; x < (imageData->height + 7) / 8; ++x) {
-        for (int y=0; y < (imageData->width + 7) / 8; ++y) {
-            prevYDcCoeff = decode_MCU(imageData, im, str, ID_Y, prevYDcCoeff, x, y);
-            prevCbDcCoeff = decode_MCU(imageData, im, str, ID_CB, prevCbDcCoeff, x, y);
-            prevCrDcCoeff = decode_MCU(imageData, im, str, ID_CR, prevCrDcCoeff, x, y);
+    int dcCoeffs[5] = {0};
+    
+    for (int x=0; x < imageData->width; x += 8) {
+        for (int y=0; y < imageData->height; y += 8) {
+            for (size_t i=0; i < imageData->componentCount; ++i) {
+                dcCoeffs[i] = decode_MCU(imageData, im, str, i, dcCoeffs[i], x, y);
+            }
         }
     }
 
@@ -294,6 +260,8 @@ static int parse_segment(jpeg_data *imageData, FILE *fp) {
         case SOS: return parse_SOS(imageData, data, length);
         default: return SUCCESS;  // FAIL;
     }
+
+    free(data);
 }
 
 static void free_jpeg(jpeg_data *data) {
@@ -354,16 +322,4 @@ image *jpg_fparse(char *path) {
     free_jpeg(imageData);
 
     return im;
-}
-
-void jpg_free_image(image *im) {
-    for (size_t i=0; i < im->width; ++i) {
-        free(im->pixels[i]);
-    }
-    free(im->pixels);
-    free(im);
-}
-
-uint8_t ***jpg_get_image_pixels(image *im) {
-    return im->pixels;
 }
