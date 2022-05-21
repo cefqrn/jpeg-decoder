@@ -363,3 +363,7 @@ void jpg_free_image(image *im) {
     free(im->pixels);
     free(im);
 }
+
+uint8_t ***jpg_get_image_pixels(image *im) {
+    return im->pixels;
+}
