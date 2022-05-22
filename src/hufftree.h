@@ -7,6 +7,11 @@
 
 typedef struct huff_tree huff_tree;
 
+typedef enum HuffTableClass {
+    CLASS_DC = 0,
+    CLASS_AC = 1
+} HuffTableClass;
+
 huff_tree *huf_parse_huff_tree(uint8_t *data, size_t *offset);
 void huf_free_huff_tree(huff_tree *tree);
 void huf_print_huff_tree(huff_tree *tree);

@@ -1,8 +1,8 @@
 #include "macros.h"
+#include "stream.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <err.h>
 
 #define CHAR_WIDTH 8
 
@@ -24,11 +24,8 @@ void str_print_stream(stream *str) {
 }
 
 stream *str_create_stream(uint8_t *data, size_t length) {
-    if (data == NULL)
-        errx(EXIT_FAILURE, "Could not create stream with null data.");
-
-    if (length == 0)
-        errx(EXIT_FAILURE, "Could not create stream of length 0");
+    CHECK_FAIL(data == NULL, "Could not create stream with null data.");
+    CHECK_FAIL(length == 0, "Could not create stream of length 0");
 
     stream *str = calloc(length, sizeof *str);
     CHECK_ALLOC(str, "stream");
@@ -58,9 +55,7 @@ int str_get_bit(stream *str) {
     }
 
     // check if stream is dry
-    if (str->charIndex == str->length) {
-        return -1;
-    }
+    CHECK_FAIL(str->charIndex == str->length, "Tried to get bit from dry stream.");
 
     return (str->data[str->charIndex] >> (CHAR_WIDTH - ++str->bitIndex)) & 0x1;
 }

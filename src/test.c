@@ -1,12 +1,10 @@
+#include "macros.h"
 #include "image.h"
 #include "jpeg.h"
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {
-    if (argc <= 1) {
-        puts("No path given.");
-        return -1;
-    }
+    CHECK_FAIL(argc <= 1, "No path given.");
 
     char *path = argv[1];
 

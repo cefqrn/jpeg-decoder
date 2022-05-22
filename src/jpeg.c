@@ -3,7 +3,7 @@
 #include "macros.h"
 #include "stream.h"
 #include "image.h"
-#include "err.h"
+#include "jpeg.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -14,7 +14,7 @@
 #define READ_WORD(fp) getc(fp) << CHAR_WIDTH | getc(fp)
 #define GET_WORD(data, index) (data[index] << CHAR_WIDTH) + data[index + 1]
 
-size_t ZIGZAG[8][8] = {
+static size_t ZIGZAG[8][8] = {
     {0, 1, 5, 6, 14, 15, 27, 28},
     {2, 4, 7, 13, 16, 26, 29, 42},
     {3, 8, 12, 17, 25, 30, 41, 43},
@@ -43,11 +43,6 @@ typedef enum ComponentId {
     ID_Q = 5
 } ComponentId;
 
-typedef enum TableClass {
-    CLASS_DC = 0,
-    CLASS_AC = 1
-} TableClass;
-
 typedef struct component_data {
     uint8_t id;
     uint8_t vSamplingFactor:4;
@@ -72,8 +67,7 @@ typedef struct jpeg_data {
 } jpeg_data;
 
 static void parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
-    if ((imageData->versionMajor = data[5]) != 1)
-        errx(EXIT_FAILURE, "Invalid major version number: %d\n", imageData->versionMajor);
+    CHECK_FAIL((imageData->versionMajor = data[5]) != 1, "Invalid major version number: %d", imageData->versionMajor);
 
     imageData->versionMinor = data[6];
     imageData->pixelDensityUnit = data[7];
@@ -141,11 +135,7 @@ static int decode_dc_diff(huff_tree *tree, stream *str, int prevCoeff) {
     return decode_MCU_value(size, bits) + prevCoeff;
 }
 
-static double normalize(double u) {
-    return u == 0 ? 1.0/sqrt(2.0) : 1.0;
-}
-
-static uint8_t clamp(int n) {
+static inline uint8_t clamp(int n) {
     return n < 0 ? 0 : n > 255 ? 255 : n;
 }
 
@@ -169,8 +159,7 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
         i += value >> 4; // skip zeroes
         uint8_t size = value & 0xF;
         
-        if (64 <= i)
-            errx(EXIT_FAILURE, "Coefficient value index went past 64.");
+        CHECK_FAIL(64 <= i, "Coefficient value index went past 64.");
 
         coeffVector[i] = decode_MCU_value(size, str_get_bits(str, size)) * qnt_get_quant_table_value(quantTable, i);
     }
@@ -186,7 +175,7 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
     if (idctTable[0][0] == 0) {
         for (size_t u=0; u < 8; ++u) {
             for (size_t x=0; x < 8; ++x) {
-                idctTable[u][x] = normalize(u) * cos(((2.0*x + 1.0) * u * M_PI) / 16.0);
+                idctTable[u][x] = (u == 0 ? 1.0/sqrt(2.0) : 1.0) * cos(((2.0*x + 1.0) * u * M_PI) / 16.0);
             }
         }
     }
@@ -245,7 +234,7 @@ static void parse_segments(jpeg_data *imageData, FILE *fp) {
         fread(data, sizeof(*data), length, fp);
 
         switch (marker) {
-            case COM: break;
+            case COM: printf("Comment: \"%s\"\n", data); break;
             case APP0: parse_APP0(imageData, data, length); break;
             case SOF: parse_SOF(imageData, data, length); break;
             case DHT: parse_DHT(imageData, data, length); break;
@@ -259,10 +248,7 @@ static void parse_segments(jpeg_data *imageData, FILE *fp) {
 }
 
 static void free_jpeg(jpeg_data *data) {
-    for (int i=0; i < data->componentCount; ++i) {
-        free(data->componentData[i]);
-    }
-    free(data->componentData);
+    FREE_2D_ARRAY(data->componentData, data->componentCount);
 
     for (size_t i=0; i < 2; ++i) {
         for (size_t j=0; j < 2; ++j) {
@@ -279,8 +265,7 @@ static void free_jpeg(jpeg_data *data) {
 
 image *jpg_fparse(char *path) {
     FILE *fp = fopen(path, "r");
-    if (fp == NULL)
-        errx(EXIT_FAILURE, "Could not open file.");
+    CHECK_FAIL(fp == NULL, "Could not open file.");
 
     for (uint16_t word = READ_WORD(fp); word != SOI; word = (word << CHAR_WIDTH) + fgetc(fp)) {}
 

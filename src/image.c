@@ -1,7 +1,7 @@
 #include "macros.h"
+#include "image.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <err.h>
 
 typedef struct image {
     uint16_t width;
@@ -16,12 +16,15 @@ void img_print_image(image *im) {
             char pixelValue = pixels[(int)((double)im->pixels[x][y][0]/255.0*8.0)];
             printf("%c%c", pixelValue, pixelValue);
         }
+        
         printf("\n");
     }
 }
 
 image *img_create_image(uint16_t width, uint16_t height) {
     image *im = malloc(sizeof *im);
+    CHECK_ALLOC(im, "image");
+
     im->width = width;
     im->height = height;
 
@@ -72,16 +75,10 @@ void img_yuv_to_rgb(image *im) {
         }
     }
 
-    for (size_t x=0; x < im->width; ++x) {
-        free(yuvImage[x]);
-    }
-    free(yuvImage);
+    FREE_2D_ARRAY(yuvImage, im->width);
 }
 
 void img_free_image(image *im) {
-    for (size_t i=0; i < im->width; ++i) {
-        free(im->pixels[i]);
-    }
-    free(im->pixels);
+    FREE_2D_ARRAY(im->pixels, im->width);
     free(im);
 }

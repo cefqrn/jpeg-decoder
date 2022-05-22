@@ -1,10 +1,9 @@
+#include "hufftree.h"
 #include "macros.h"
 #include "stream.h"
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <err.h>
 
 #define CODE_LENGTH_COUNT 16
 
@@ -19,7 +18,7 @@ typedef struct huff_node {
 
 typedef struct huff_tree {
     huff_node *root;
-    uint8_t class;
+    HuffTableClass class;
     uint8_t id;
 } huff_tree;
 
@@ -87,13 +86,8 @@ huff_tree *huf_parse_huff_tree(uint8_t *data, size_t *offset) {
 }
 
 static void free_huff_node(huff_node *node) {
-    if (node->hasLeft) {
-        free_huff_node(node->left);
-    }
-
-    if (node->hasRight) {
-        free_huff_node(node->right);
-    }
+    if (node->hasLeft) free_huff_node(node->left);
+    if (node->hasRight) free_huff_node(node->right);
 
     free(node);
 }
@@ -103,30 +97,21 @@ void huf_free_huff_tree(huff_tree *tree) {
     free(tree);
 }
 
-static void print_huff_node(huff_node *node, int depth) {
-    if (node->hasLeft) {
-        print_huff_node(node->left, depth + 1);
-    }
+static void print_huff_node(huff_node *node, int indentationDepth) {
+    if (node->hasLeft) print_huff_node(node->left, indentationDepth + 1);
 
-    for (int i=0; i < depth; ++i) {
-        printf("  ");
-    }
-    if (node->hasSymbol) {
-        printf("%02X\n", node->symbol);
-    } else {
-        printf("");
-    }
-    
+    for (int i=0; i < indentationDepth; ++i) printf("  ");
 
-    if (node->hasRight) {
-        print_huff_node(node->right, depth + 1);
-    }
+    if (node->hasSymbol) printf("%02X\n", node->symbol);
+    else puts("--");
+
+    if (node->hasRight) print_huff_node(node->right, indentationDepth + 1);
 }
 
 void huf_print_huff_tree(huff_tree *tree) {
     print_huff_node(tree->root, 0);
+    printf("\n");
 }
-
 
 uint8_t huf_get_huff_tree_class(huff_tree *tree) {
     return tree->class;
@@ -137,24 +122,19 @@ uint8_t huf_get_huff_tree_id(huff_tree *tree) {
 }
 
 uint8_t huf_decode_next_symbol(huff_tree *tree, stream *str) {
-    // returns the decoded symbols from a stream using the passed huff_tree
-
     huff_node *curr = tree->root;
 
     while (!curr->hasSymbol) {
         switch (str_get_bit(str)) {
             case 1:
-                if (!curr->hasRight)
-                    errx(EXIT_FAILURE, "Could not find next symbol in huff_tree.");
+                CHECK_FAIL(!curr->hasRight, "Could not find next symbol in huff_tree.");
 
                 curr = curr->right;
                 break;
             case 0:
-                if (!curr->hasLeft)
-                    errx(EXIT_FAILURE, "Could not find next symbol in huff_tree.");
+                CHECK_FAIL(!curr->hasLeft, "Could not find next symbol in huff_tree.");
 
                 curr = curr->left;
-                break;
         }
     }
 

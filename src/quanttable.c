@@ -1,8 +1,7 @@
+#include "quanttable.h"
 #include "macros.h"
-#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <err.h>
 
 #define VALUE_COUNT 64
 
@@ -31,12 +30,7 @@ quant_table *qnt_parse_quant_table(uint8_t *data, size_t *offset) {
     table->precision = (info & 0x10) >> 4;
     table->number = info & 0x1;
 
-    size_t dataSize;
-    if (table->precision == 0) {
-        dataSize = sizeof(uint8_t);
-    } else {
-        dataSize = sizeof(uint16_t);
-    }
+    size_t dataSize =  table->precision == 0 ? sizeof(uint8_t) : sizeof(uint16_t);
 
     for (size_t i=0; i < VALUE_COUNT; ++i) {
         table->values[i] = (data + (*offset)++)[i * (dataSize - 1)];
