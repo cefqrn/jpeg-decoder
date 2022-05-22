@@ -1,8 +1,10 @@
+#include "macros.h"
 #include "stream.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <err.h>
 
 #define CODE_LENGTH_COUNT 16
 
@@ -22,7 +24,10 @@ typedef struct huff_tree {
 } huff_tree;
 
 static huff_node *create_huff_node() {
-    return calloc(1, sizeof(huff_node));
+    huff_node *node = calloc(1, sizeof(huff_node));
+    CHECK_ALLOC(node, "huff_node");
+
+    return node;
 }
 
 static void add_symbol_to_huff_node(huff_node *root, uint16_t code, int codeLength, uint8_t symbol) {
@@ -53,10 +58,12 @@ static void add_symbol_to_huff_node(huff_node *root, uint16_t code, int codeLeng
 huff_tree *huf_parse_huff_tree(uint8_t *data, size_t *offset) {
     size_t initialOffset = *offset;
 
-    huff_node *root = calloc(1, sizeof(huff_node));
-
     huff_tree *tree = malloc(sizeof *tree);
+    CHECK_ALLOC(tree, "huffman tree");
+
+    huff_node *root = create_huff_node();
     tree->root = root;
+    
     tree->class = (data[initialOffset] & 0x10) >> 4;
     tree->id = data[initialOffset] & 0x1;
 
@@ -129,7 +136,7 @@ uint8_t huf_get_huff_tree_id(huff_tree *tree) {
     return tree->id;
 }
 
-int huf_decode_next_symbol(huff_tree *tree, stream *str) {
+uint8_t huf_decode_next_symbol(huff_tree *tree, stream *str) {
     // returns the decoded symbols from a stream using the passed huff_tree
 
     huff_node *curr = tree->root;
@@ -137,15 +144,17 @@ int huf_decode_next_symbol(huff_tree *tree, stream *str) {
     while (!curr->hasSymbol) {
         switch (str_get_bit(str)) {
             case 1:
-                if (!curr->hasRight) return -1;
+                if (!curr->hasRight)
+                    errx(EXIT_FAILURE, "Could not find next symbol in huff_tree.");
+
                 curr = curr->right;
                 break;
             case 0:
-                if (!curr->hasLeft) return -1;
+                if (!curr->hasLeft)
+                    errx(EXIT_FAILURE, "Could not find next symbol in huff_tree.");
+
                 curr = curr->left;
                 break;
-            default:
-                return -1;
         }
     }
 

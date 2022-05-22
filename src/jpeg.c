@@ -1,7 +1,9 @@
 #include "quanttable.h"
 #include "hufftree.h"
+#include "macros.h"
 #include "stream.h"
 #include "image.h"
+#include "err.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -23,14 +25,9 @@ size_t ZIGZAG[8][8] = {
     {35, 36, 48, 49, 57, 58, 62, 63}
 };
 
-typedef enum ReturnValue {
-    FAIL = -1,
-    SUCCESS = 0,
-    IMAGE_DATA_NEXT = 1
-} ReturnValue;
-
 typedef enum SegmentMarker {
     SOI = 0xFFD8,
+    COM = 0xFFFE,
     APP0 = 0xFFE0,
     SOF = 0xFFC0,
     DHT = 0xFFC4,
@@ -74,68 +71,59 @@ typedef struct jpeg_data {
     quant_table *quantTables[2];
 } jpeg_data;
 
-static int parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
-    if ((imageData->versionMajor = data[5]) != 1) {
-        printf("Invalid major version number: %d\n", imageData->versionMajor);
-        return FAIL;
-    }
+static void parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
+    if ((imageData->versionMajor = data[5]) != 1)
+        errx(EXIT_FAILURE, "Invalid major version number: %d\n", imageData->versionMajor);
 
     imageData->versionMinor = data[6];
     imageData->pixelDensityUnit = data[7];
     imageData->hPixelDensity = GET_WORD(data, 8);
     imageData->vPixelDensity = GET_WORD(data, 10);
-
-    return SUCCESS;
 }
 
-static int parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
+static void parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
     imageData->precision = data[0];
     imageData->height = GET_WORD(data, 1);
     imageData->width = GET_WORD(data, 3);
     imageData->componentCount = data[5];
 
     imageData->componentData = malloc(imageData->componentCount * sizeof *imageData->componentData);
+    CHECK_ALLOC(imageData->componentData, "image component data");
+
     for (size_t i=0; i < imageData->componentCount; ++i) {
-        component_data *componentData = malloc(sizeof *componentData);
+        component_data *currComponentData = malloc(sizeof *currComponentData);
+        CHECK_ALLOC(currComponentData, "component data");
 
-        componentData->id = data[6 + i*3];
-        componentData->vSamplingFactor = data[7 + i*3] >> 4;
-        componentData->hSamplingFactor = data[7 + i*3] & 0xF;
-        componentData->qTableId = data[8 + i*3] & 0xF;
+        currComponentData->id = data[6 + i*3];
+        currComponentData->vSamplingFactor = data[7 + i*3] >> 4;
+        currComponentData->hSamplingFactor = data[7 + i*3] & 0xF;
+        currComponentData->qTableId = data[8 + i*3] & 0xF;
 
-        imageData->componentData[i] = componentData;
+        imageData->componentData[i] = currComponentData;
     }
-
-    return SUCCESS;
 }
 
-static int parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
+static void parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
     size_t offset = 0;
     while (offset < length) {
         huff_tree *tree = huf_parse_huff_tree(data, &offset);
         imageData->huffTrees[huf_get_huff_tree_id(tree)][huf_get_huff_tree_class(tree)] = tree;
     }
-
-    return SUCCESS;
 }
 
-static int parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
+static void parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
     size_t offset = 0;
     while (offset < length) {
         quant_table *table = qnt_parse_quant_table(data, &offset);
         imageData->quantTables[qnt_get_quant_table_number(table)] = table;
     }
-    
-    return SUCCESS;
 }
 
-static int parse_SOS(jpeg_data *imageData, uint8_t *data, size_t length) {
+static void parse_SOS(jpeg_data *imageData, uint8_t *data, size_t length) {
     uint8_t componentCount = data[0];
     for (size_t i=0; i < componentCount; ++i) {
         imageData->componentData[i]->hTreeId = data[2 + i * 2] >> 4;
     }
-
-    return IMAGE_DATA_NEXT;
 }
 
 static int decode_MCU_value(uint8_t size, int16_t bits) {
@@ -180,6 +168,9 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
 
         i += value >> 4; // skip zeroes
         uint8_t size = value & 0xF;
+        
+        if (64 <= i)
+            errx(EXIT_FAILURE, "Coefficient value index went past 64.");
 
         coeffVector[i] = decode_MCU_value(size, str_get_bits(str, size)) * qnt_get_quant_table_value(quantTable, i);
     }
@@ -191,10 +182,12 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
         }
     }
 
-    double idctTable[8][8];
-    for (size_t u=0; u < 8; ++u) {
-        for (size_t x=0; x < 8; ++x) {
-            idctTable[u][x] = normalize(u) * cos(((2.0*x + 1.0) * u * M_PI) / 16.0);
+    static double idctTable[8][8];
+    if (idctTable[0][0] == 0) {
+        for (size_t u=0; u < 8; ++u) {
+            for (size_t x=0; x < 8; ++x) {
+                idctTable[u][x] = normalize(u) * cos(((2.0*x + 1.0) * u * M_PI) / 16.0);
+            }
         }
     }
 
@@ -216,12 +209,10 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
         }
     }
 
-    // fprintf(stderr, "%d\n", prevDcCoeff);
-    // puts("banana");
     return prevDcCoeff;
 }
 
-static image *parse_image_data(jpeg_data *imageData, uint8_t *data, size_t length) {
+static void parse_image_data(jpeg_data *imageData, image *im, uint8_t *data, size_t length) {
     // get rid of byte stuffing
     for (size_t i=0; i < length; ++i) {
         if (data[i] == 0xFF) {
@@ -229,7 +220,6 @@ static image *parse_image_data(jpeg_data *imageData, uint8_t *data, size_t lengt
         }
     }
 
-    image *im = img_create_image(imageData->width, imageData->height);
     stream *str = str_create_stream(data, length);
 
     int dcCoeffs[5] = {0};
@@ -241,27 +231,31 @@ static image *parse_image_data(jpeg_data *imageData, uint8_t *data, size_t lengt
             }
         }
     }
-
-    return im;
 }
 
-static int parse_segment(jpeg_data *imageData, FILE *fp) {
-    uint16_t marker = READ_WORD(fp);
+static void parse_segments(jpeg_data *imageData, FILE *fp) {
+    SegmentMarker marker = 0;
+    do {
+        marker = READ_WORD(fp);
 
-    size_t length = READ_WORD(fp) - WORD_SIZE;
-    uint8_t *data = malloc(length * sizeof *data);
-    fread(data, sizeof(*data), length, fp);
+        size_t length = READ_WORD(fp) - WORD_SIZE;
+        uint8_t *data = malloc(length * sizeof *data);
+        CHECK_ALLOC(data, "data");
 
-    switch (marker) {
-        case APP0: return parse_APP0(imageData, data, length);
-        case SOF: return parse_SOF(imageData, data, length);
-        case DHT: return parse_DHT(imageData, data, length);
-        case DQT: return parse_DQT(imageData, data, length);
-        case SOS: return parse_SOS(imageData, data, length);
-        default: return SUCCESS;  // FAIL;
-    }
+        fread(data, sizeof(*data), length, fp);
 
-    free(data);
+        switch (marker) {
+            case COM: break;
+            case APP0: parse_APP0(imageData, data, length); break;
+            case SOF: parse_SOF(imageData, data, length); break;
+            case DHT: parse_DHT(imageData, data, length); break;
+            case DQT: parse_DQT(imageData, data, length); break;
+            case SOS: parse_SOS(imageData, data, length); break;
+            default: warnx("Could not recognize marker: %04X", marker);
+        }
+
+        free(data);
+    } while (marker != SOS);
 }
 
 static void free_jpeg(jpeg_data *data) {
@@ -285,40 +279,37 @@ static void free_jpeg(jpeg_data *data) {
 
 image *jpg_fparse(char *path) {
     FILE *fp = fopen(path, "r");
-
-    if (fp == NULL) {
-        puts("Could not open file.");
-        return NULL;
-    }
+    if (fp == NULL)
+        errx(EXIT_FAILURE, "Could not open file.");
 
     for (uint16_t word = READ_WORD(fp); word != SOI; word = (word << CHAR_WIDTH) + fgetc(fp)) {}
 
     jpeg_data *imageData = calloc(1, sizeof *imageData);
+    CHECK_ALLOC(imageData, "image data");
 
-    int exit_code;
-    while ((exit_code = parse_segment(imageData, fp)) == SUCCESS);
+    parse_segments(imageData, fp);
 
-    if (exit_code != IMAGE_DATA_NEXT) {
-        fclose(fp);
-        puts("Could not parse jpeg.");
-        // free_jpeg(imageData);
-        return NULL;
+    image *im = img_create_image(imageData->width, imageData->height);
+
+    {
+        // get remaining file length
+        size_t index = ftell(fp);
+        fseek(fp, 0, SEEK_END);
+        size_t fileSize = ftell(fp);
+        fseek(fp, index, SEEK_SET);
+        size_t length = fileSize - index - WORD_SIZE;
+
+        uint8_t *data = malloc(length * sizeof *data);
+        CHECK_ALLOC(data, "data");
+
+        fread(data, sizeof *data, length, fp);
+
+        parse_image_data(imageData, im, data, length);
+
+        free(data);
     }
 
-    // get remaining file length
-    size_t index = ftell(fp);
-    fseek(fp, 0, SEEK_END);
-    size_t fileSize = ftell(fp);
-    fseek(fp, index, SEEK_SET);
-    size_t length = fileSize - index - WORD_SIZE;
-
-    uint8_t *data = malloc(length * sizeof *data);
-    fread(data, sizeof *data, length, fp);
-
     fclose(fp);
-
-    image *im = parse_image_data(imageData, data, length);
-
     free_jpeg(imageData);
 
     return im;

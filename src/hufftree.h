@@ -12,6 +12,6 @@ void huf_free_huff_tree(huff_tree *tree);
 void huf_print_huff_tree(huff_tree *tree);
 uint8_t huf_get_huff_tree_class(huff_tree *tree);
 uint8_t huf_get_huff_tree_id(huff_tree *tree);
-int huf_decode_next_symbol(huff_tree *tree, stream *str);
+uint8_t huf_decode_next_symbol(huff_tree *tree, stream *str);
 
 #endif

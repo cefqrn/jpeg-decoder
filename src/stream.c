@@ -1,6 +1,8 @@
+#include "macros.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <err.h>
 
 #define CHAR_WIDTH 8
 
@@ -22,20 +24,20 @@ void str_print_stream(stream *str) {
 }
 
 stream *str_create_stream(uint8_t *data, size_t length) {
-    if (data == NULL) {
-        puts("Could not create stream with null data");
-        return NULL;
-    }
+    if (data == NULL)
+        errx(EXIT_FAILURE, "Could not create stream with null data.");
 
-    if (length == 0) {
-        puts("Could not create stream with length 0");
-        return NULL;
-    }
+    if (length == 0)
+        errx(EXIT_FAILURE, "Could not create stream of length 0");
 
     stream *str = calloc(length, sizeof *str);
+    CHECK_ALLOC(str, "stream");
+
     str->length = length;
 
     str->data = malloc(str->length * sizeof *str->data);
+    CHECK_ALLOC(str->data, "stream data");
+
     memcpy(str->data, data, str->length);
 
     return str;

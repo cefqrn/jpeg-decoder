@@ -1,6 +1,8 @@
+#include "macros.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <err.h>
 
 #define VALUE_COUNT 64
 
@@ -22,6 +24,7 @@ void qnt_print_quant_table(quant_table *table) {
 
 quant_table *qnt_parse_quant_table(uint8_t *data, size_t *offset) {
     quant_table *table = malloc(sizeof *table);
+    CHECK_ALLOC(table, "quantization table");
 
     uint8_t info = data[(*offset)++];
 
