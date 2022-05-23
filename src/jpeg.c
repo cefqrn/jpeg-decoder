@@ -180,12 +180,12 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
         }
     }
 
-    for (size_t x=0; x < 8 && McuX + x < imageData->width; ++x) {
-        for (size_t y=0; y < 8 && McuY + y < imageData->height; ++y) {
+    for (size_t y=0; y < 8 && McuY + y < imageData->height; ++y) {
+        for (size_t x=0; x < 8 && McuX + x < imageData->width; ++x) {
             double sum = 0;
             for (size_t u=0; u < imageData->precision; ++u) {
                 for (size_t v=0; v < imageData->precision; ++v) { 
-                    sum += coeffMatrix[u][v] * idctTable[u][x] * idctTable[v][y];
+                    sum += coeffMatrix[v][u] * idctTable[u][x] * idctTable[v][y];
                 }
             }
 
@@ -213,8 +213,8 @@ static void parse_image_data(jpeg_data *imageData, image *im, uint8_t *data, siz
 
     int dcCoeffs[5] = {0};
     
-    for (int x=0; x < imageData->width; x += 8) {
-        for (int y=0; y < imageData->height; y += 8) {
+    for (int y=0; y < imageData->height; y += 8) {
+        for (int x=0; x < imageData->width; x += 8) {
             for (size_t i=0; i < imageData->componentCount; ++i) {
                 dcCoeffs[i] = decode_MCU(imageData, im, str, i, dcCoeffs[i], x, y);
             }
