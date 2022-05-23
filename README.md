@@ -1,12 +1,10 @@
 # jpeg-decoder
-A jpeg decoder originally made for a [kattis problem](https://open.kattis.com/problems/coincounter).
+A jpeg decoder originally made to solve a [Kattis problem](https://open.kattis.com/problems/coincounter).
 
-The examples are my own images. Chroma subsampling was purged using [Krita](https://krita.org/en/).
+The examples are my own images. [Krita](https://krita.org/en/) was used to resize them and remove their chroma subsampling.
 
 ## Usage
-```zsh
-./bin/test <file>
-```
+`./bin/test <file>`
 
 Chroma subsampling is not supported.
 
