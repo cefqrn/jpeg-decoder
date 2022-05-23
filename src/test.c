@@ -11,10 +11,7 @@ int main(int argc, char *argv[]) {
     image *im = jpg_fparse(path);
 
     img_yuv_to_rgb(im);
-    
-    img_print_image(im, 2, 0);
-    img_print_image(im, 2, 1);
-    img_print_image(im, 2, 2);
+    img_print_image(im, 2);
 
     img_free_image(im);
 }

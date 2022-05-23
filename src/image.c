@@ -10,17 +10,17 @@ typedef struct image {
     uint8_t (**pixels)[3];
 } image;
 
-void img_print_image(image *im, size_t pixelWidth, size_t component) {
-    char pixels[] = " .:!=?$#@";
+void img_print_image(image *im, size_t pixelWidth) {
     for (size_t y=0; y < im->height; ++y) {
         for (size_t x=0; x < im->width; ++x) {
-            char pixelValue = pixels[(int)((double)im->pixels[x][y][component]/255.0*8.0)];
+            char color[64];
+            snprintf(color, 64, "\x1b[48;2;%u;%u;%um", im->pixels[x][y][0], im->pixels[x][y][1], im->pixels[x][y][2]);
             for (size_t i=0; i < pixelWidth; ++i) {
-                printf("%c", pixelValue);
+                printf("%s ", color);
             }
         }
         
-        printf("\n");
+        printf("\x1b[0m\n");
     }
 }
 
@@ -74,11 +74,11 @@ void img_yuv_to_rgb(image *im) {
 
             // Cb
             im->pixels[x][y][1] = clamp(im->pixels[x][y][1] - 0.34414 * (yuvImage[x][y][1] - 128.0));
-            im->pixels[x][y][2] = clamp(im->pixels[x][y][1] + 1.772 * (yuvImage[x][y][1] - 128.0));
+            im->pixels[x][y][2] = clamp(im->pixels[x][y][2] + 1.772 * (yuvImage[x][y][1] - 128.0));
 
             // Cr
-            im->pixels[x][y][0] = clamp(im->pixels[x][y][2] - 1.402 * (yuvImage[x][y][2] - 128.0));
-            im->pixels[x][y][1] = clamp(im->pixels[x][y][2] + 0.71414 * (yuvImage[x][y][2] - 128.0));
+            im->pixels[x][y][0] = clamp(im->pixels[x][y][0] + 1.402 * (yuvImage[x][y][2] - 128.0));
+            im->pixels[x][y][1] = clamp(im->pixels[x][y][1] - 0.71414 * (yuvImage[x][y][2] - 128.0));
         }
     }
 

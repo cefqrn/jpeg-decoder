@@ -1,7 +1,7 @@
 # jpeg-decoder
 A jpeg decoder originally made to solve a [Kattis problem](https://open.kattis.com/problems/coincounter).
 
-The examples are my own images. [Krita](https://krita.org/en/) was used to scale them and remove their chroma subsampling.
+The examples are my own images. [Krita](https://krita.org/en/) was used to scale and remove chroma subsampling from the `no_subsampling` examples. [FFmpeg](https://ffmpeg.org/) was used otherwise.
 
 ## Usage
 `./bin/test <file>`
