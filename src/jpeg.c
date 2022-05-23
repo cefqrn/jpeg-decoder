@@ -93,8 +93,10 @@ static void parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
         currComponentData->hSamplingFactor = data[7 + i*3] & 0xF;
         currComponentData->qTableId = data[8 + i*3] & 0xF;
 
-        CHECK_FAIL(currComponentData->vSamplingFactor != 1, "Chroma subsampling not supported.");
-        CHECK_FAIL(currComponentData->hSamplingFactor != 1, "Chroma subsampling not supported.");
+        printf("%d: %d %d\n", currComponentData->id, currComponentData->hSamplingFactor, currComponentData->vSamplingFactor);
+
+        // CHECK_FAIL(currComponentData->vSamplingFactor != 1, "Chroma subsampling not supported.");
+        // CHECK_FAIL(currComponentData->hSamplingFactor != 1, "Chroma subsampling not supported.");
 
         imageData->componentData[i] = currComponentData;
     }
@@ -142,7 +144,7 @@ static inline uint8_t clamp(int n) {
     return n < 0 ? 0 : n > 255 ? 255 : n;
 }
 
-static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t componentIndex, int prevDcCoeff, size_t McuX, size_t McuY) {
+static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t componentIndex, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
     int coeffVector[64] = {0};
 
     component_data *componentData = imageData->componentData[componentIndex];
@@ -183,8 +185,8 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
         }
     }
 
-    for (size_t y=0; y < 8 && McuY + y < imageData->height; ++y) {
-        for (size_t x=0; x < 8 && McuX + x < imageData->width; ++x) {
+    for (size_t y=0; y < 8 && McuY + y * vSamplingFactor < imageData->height; ++y) {
+        for (size_t x=0; x < 8 && McuX + x * hSamplingFactor < imageData->width; ++x) {
             double sum = 0;
             for (size_t u=0; u < imageData->precision; ++u) {
                 for (size_t v=0; v < imageData->precision; ++v) { 
@@ -193,11 +195,17 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
             }
 
             uint8_t value = clamp(round(sum/4 + 128));
-            uint16_t globalX = McuX + x;
-            uint16_t globalY = McuY + y;
+            uint16_t globalX = McuX + x * hSamplingFactor;
+            uint16_t globalY = McuY + y * vSamplingFactor;
             // printf("%d, %d: %d (%d)\n", globalX, globalY, value, componentData->id);
+            // img_set_pixel(im, globalX, globalY, componentData->id - 1, value);
 
-            img_set_pixel(im, globalX, globalY, componentData->id - 1, value);
+            for (size_t v=0; v < vSamplingFactor && globalY + v < imageData->height; ++v) {
+                for (size_t h=0; h < hSamplingFactor && globalX + h < imageData->width; ++h) {
+                    // printf("%lu, %lu: %d (%d)\n", globalX + h, globalY + v, value, componentData->id);
+                    img_set_pixel(im, globalX + h, globalY + v, componentData->id - 1, value);
+                }
+            }
         }
     }
 
@@ -215,11 +223,26 @@ static void parse_image_data(jpeg_data *imageData, image *im, uint8_t *data, siz
     stream *str = str_create_stream(data, length);
 
     int dcCoeffs[5] = {0};
+
+    // note: this assumes both Cb and Cr have the same sampling factors
+    size_t hSamplingFactor = 1;
+    size_t vSamplingFactor = 1;
+    if (imageData->componentCount == 3) {
+        hSamplingFactor = imageData->componentData[0]->hSamplingFactor / imageData->componentData[1]->hSamplingFactor;
+        vSamplingFactor = imageData->componentData[0]->vSamplingFactor / imageData->componentData[1]->vSamplingFactor;
+    }
     
-    for (int y=0; y < imageData->height; y += 8) {
-        for (int x=0; x < imageData->width; x += 8) {
-            for (size_t i=0; i < imageData->componentCount; ++i) {
-                dcCoeffs[i] = decode_MCU(imageData, im, str, i, dcCoeffs[i], x, y);
+    for (int y=0; y < imageData->height; y += 8 * vSamplingFactor) {
+        for (int x=0; x < imageData->width; x += 8 * hSamplingFactor) {
+            for (size_t v=0; v < vSamplingFactor; ++v) {
+                for (size_t h=0; h < hSamplingFactor; ++h) {
+                    dcCoeffs[0] = decode_MCU(imageData, im, str, 0, dcCoeffs[0], x + 8*h, y + 8*v, 1, 1);
+                }
+            }
+
+            if (imageData->componentCount == 3) {
+                dcCoeffs[1] = decode_MCU(imageData, im, str, 1, dcCoeffs[1], x, y, hSamplingFactor, vSamplingFactor);
+                dcCoeffs[2] = decode_MCU(imageData, im, str, 2, dcCoeffs[2], x, y, hSamplingFactor, vSamplingFactor);
             }
         }
     }

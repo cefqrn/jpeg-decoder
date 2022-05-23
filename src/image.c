@@ -10,11 +10,11 @@ typedef struct image {
     uint8_t (**pixels)[3];
 } image;
 
-void img_print_image(image *im, size_t pixelWidth) {
+void img_print_image(image *im, size_t pixelWidth, size_t component) {
     char pixels[] = " .:!=?$#@";
     for (size_t y=0; y < im->height; ++y) {
         for (size_t x=0; x < im->width; ++x) {
-            char pixelValue = pixels[(int)((double)im->pixels[x][y][0]/255.0*8.0)];
+            char pixelValue = pixels[(int)((double)im->pixels[x][y][component]/255.0*8.0)];
             for (size_t i=0; i < pixelWidth; ++i) {
                 printf("%c", pixelValue);
             }
@@ -46,6 +46,10 @@ void img_set_pixel(image *im, uint16_t x, uint16_t y, uint8_t componentIndex, ui
     im->pixels[x][y][componentIndex] = componentValue;
 }
 
+static inline uint8_t clamp(double n) {
+    return n < 0 ? 0 : 255 < n ? 255 : n;
+}
+
 void img_yuv_to_rgb(image *im) {
     uint8_t (**yuvImage)[3] = malloc(im->width * sizeof *yuvImage);
     CHECK_ALLOC(yuvImage, "image");
@@ -69,12 +73,12 @@ void img_yuv_to_rgb(image *im) {
             im->pixels[x][y][2] = yuvImage[x][y][0];
 
             // Cb
-            im->pixels[x][y][1] -= 0.34414 * (yuvImage[x][y][1] - 128);
-            im->pixels[x][y][2] += 1.772 * (yuvImage[x][y][1] - 128);
+            im->pixels[x][y][1] = clamp(im->pixels[x][y][1] - 0.34414 * (yuvImage[x][y][1] - 128.0));
+            im->pixels[x][y][2] = clamp(im->pixels[x][y][1] + 1.772 * (yuvImage[x][y][1] - 128.0));
 
             // Cr
-            im->pixels[x][y][0] -= 1.402 * (yuvImage[x][y][2] - 128);
-            im->pixels[x][y][1] += 0.71414 * (yuvImage[x][y][2] - 128);
+            im->pixels[x][y][0] = clamp(im->pixels[x][y][2] - 1.402 * (yuvImage[x][y][2] - 128.0));
+            im->pixels[x][y][1] = clamp(im->pixels[x][y][2] + 0.71414 * (yuvImage[x][y][2] - 128.0));
         }
     }
 

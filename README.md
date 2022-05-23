@@ -1,12 +1,10 @@
 # jpeg-decoder
 A jpeg decoder originally made to solve a [Kattis problem](https://open.kattis.com/problems/coincounter).
 
-The examples are my own images. [Krita](https://krita.org/en/) was used to resize them and remove their chroma subsampling.
+The examples are my own images. [Krita](https://krita.org/en/) was used to scale them and remove their chroma subsampling.
 
 ## Usage
 `./bin/test <file>`
-
-Chroma subsampling is not supported.
 
 ## Resources
 * [JPEG Huffman Coding Tutorial](https://www.impulseadventure.com/photo/jpeg-huffman-coding.html) \[[archive](https://web.archive.org/web/20211205035857/https://www.impulseadventure.com/photo/jpeg-huffman-coding.html)\] by [Calvin Hass (ImpulseAdventure)](https://www.impulseadventure.com) \[[archive](https://web.archive.org/web/20211202094539/https://www.impulseadventure.com)\] \[[github](https://github.com/ImpulseAdventure)\], 2009
