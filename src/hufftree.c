@@ -124,7 +124,7 @@ uint8_t huf_get_huff_tree_id(huff_tree *tree) {
 uint8_t huf_decode_next_symbol(huff_tree *tree, stream *str) {
     huff_node *curr = tree->root;
 
-    while (!curr->hasSymbol) {
+    do {
         switch (str_get_bit(str)) {
             case 1:
                 CHECK_FAIL(!curr->hasRight, "Could not find next symbol in huff_tree.");
@@ -136,7 +136,7 @@ uint8_t huf_decode_next_symbol(huff_tree *tree, stream *str) {
 
                 curr = curr->left;
         }
-    }
+    } while (!curr->hasSymbol);
 
     return curr->symbol;
 }

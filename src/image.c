@@ -10,7 +10,7 @@ typedef struct image {
 } image;
 
 void img_print_image(image *im) {
-    char pixels[] = " .:=!?$#@";
+    char pixels[] = " .:!=?$#@";
     for (size_t y=0; y < im->height; ++y) {
         for (size_t x=0; x < im->width; ++x) {
             char pixelValue = pixels[(int)((double)im->pixels[x][y][0]/255.0*8.0)];
