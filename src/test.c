@@ -9,6 +9,6 @@ int main(int argc, char *argv[]) {
     char *path = argv[1];
 
     image *im = jpg_fparse(path);
-    img_print_image(im);
+    img_print_image(im, 2);
     img_free_image(im);
 }

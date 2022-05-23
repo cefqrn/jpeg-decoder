@@ -1,6 +1,7 @@
 #include "macros.h"
 #include "image.h"
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
 typedef struct image {
@@ -9,12 +10,14 @@ typedef struct image {
     uint8_t (**pixels)[3];
 } image;
 
-void img_print_image(image *im) {
+void img_print_image(image *im, size_t pixelWidth) {
     char pixels[] = " .:!=?$#@";
     for (size_t y=0; y < im->height; ++y) {
         for (size_t x=0; x < im->width; ++x) {
             char pixelValue = pixels[(int)((double)im->pixels[x][y][0]/255.0*8.0)];
-            printf("%c%c", pixelValue, pixelValue);
+            for (size_t i=0; i < pixelWidth; ++i) {
+                printf("%c", pixelValue);
+            }
         }
         
         printf("\n");

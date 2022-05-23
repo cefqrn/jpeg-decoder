@@ -93,6 +93,9 @@ static void parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
         currComponentData->hSamplingFactor = data[7 + i*3] & 0xF;
         currComponentData->qTableId = data[8 + i*3] & 0xF;
 
+        CHECK_FAIL(currComponentData->vSamplingFactor != 1, "Chroma subsampling not supported.");
+        CHECK_FAIL(currComponentData->hSamplingFactor != 1, "Chroma subsampling not supported.");
+
         imageData->componentData[i] = currComponentData;
     }
 }
