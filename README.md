@@ -6,7 +6,7 @@ The examples are my own images. Chroma subsampling was purged using [Krita](http
 ## Usage
 ```zsh
 ./bin/test <file>
-````
+```
 
 Chroma subsampling is not supported.
 

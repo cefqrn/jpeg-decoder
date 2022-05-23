@@ -13,14 +13,15 @@ objects = $(libdir)/test.o $(libdir)/jpeg.o $(libdir)/hufftree.o $(libdir)/quant
 
 all: $(bindir)/test
 
-$(bindir)/test: $(objects)
-	$(CC) $(CFLAGS) $^ -o $@
+$(bindir)/test: setup $(objects)
+	$(CC) $(CFLAGS) $(objects) -o $@
 
 $(libdir)/%.o: $(srcdir)/%.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
 setup:
-	mkdir $(bindir) $(libdir)
+	[ ! -d $(libdir) ] && mkdir $(libdir) || true
+	[ ! -d $(bindir) ] && mkdir $(bindir) || true
 
 clean:
 	rm -f $(bindir)/* $(libdir)/*
