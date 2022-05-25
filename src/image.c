@@ -51,38 +51,16 @@ static inline uint8_t clamp(double n) {
 }
 
 void img_yuv_to_rgb(image *im) {
-    uint8_t (**yuvImage)[3] = malloc(im->width * sizeof *yuvImage);
-    CHECK_ALLOC(yuvImage, "image");
-
-    for (size_t x=0; x < im->width; ++x) {
-        yuvImage[x] = malloc(im->height * sizeof **yuvImage);
-        CHECK_ALLOC(yuvImage[x], "image");
-
-        for (size_t y=0; y < im->height; ++y) {
-            for (size_t i=0; i < 3; ++i) {
-                yuvImage[x][y][i] = im->pixels[x][y][i];
-            }
-        }
-    }
-    
     for (size_t x=0; x < im->width; ++x) {
         for (size_t y=0; y < im->height; ++y) {
-            // Y
-            im->pixels[x][y][0] = yuvImage[x][y][0];
-            im->pixels[x][y][1] = yuvImage[x][y][0];
-            im->pixels[x][y][2] = yuvImage[x][y][0];
+            uint8_t pixel[3];
+            memcpy(pixel, im->pixels[x][y], 3 * sizeof *pixel);
 
-            // Cb
-            im->pixels[x][y][1] = clamp(im->pixels[x][y][1] - 0.34414 * (yuvImage[x][y][1] - 128.0));
-            im->pixels[x][y][2] = clamp(im->pixels[x][y][2] + 1.772 * (yuvImage[x][y][1] - 128.0));
-
-            // Cr
-            im->pixels[x][y][0] = clamp(im->pixels[x][y][0] + 1.402 * (yuvImage[x][y][2] - 128.0));
-            im->pixels[x][y][1] = clamp(im->pixels[x][y][1] - 0.71414 * (yuvImage[x][y][2] - 128.0));
+            im->pixels[x][y][0] = clamp(pixel[0]                                +   1.402 * (pixel[2] - 128.0));
+            im->pixels[x][y][1] = clamp(pixel[0] - 0.34414 * (pixel[1] - 128.0) - 0.71414 * (pixel[2] - 128.0));
+            im->pixels[x][y][2] = clamp(pixel[0] +   1.772 * (pixel[1] - 128.0));
         }
     }
-
-    FREE_2D_ARRAY(yuvImage, im->width);
 }
 
 void img_free_image(image *im) {
