@@ -25,6 +25,17 @@ static size_t ZIGZAG[8][8] = {
     {35, 36, 48, 49, 57, 58, 62, 63}
 };
 
+static double IDCT_TABLE[8][8] = {
+    {0.707107, 0.707107, 0.707107, 0.707107, 0.707107, 0.707107, 0.707107, 0.707107},
+    {0.980785, 0.831470, 0.555570, 0.195090, -0.195090, -0.555570, -0.831470, -0.980785},
+    {0.923880, 0.382683, -0.382683, -0.923880, -0.923880, -0.382683, 0.382683, 0.923880},
+    {0.831470, -0.195090, -0.980785, -0.555570, 0.555570, 0.980785, 0.195090, -0.831470},
+    {0.707107, -0.707107, -0.707107, 0.707107, 0.707107, -0.707107, -0.707107, 0.707107},
+    {0.555570, -0.980785, 0.195090, 0.831470, -0.831470, -0.195090, 0.980785, -0.555570},
+    {0.382683, -0.923880, 0.923880, -0.382683, -0.382683, 0.923880, -0.923880, 0.382683},
+    {0.195090, -0.555570, 0.831470, -0.980785, 0.980785, -0.831470, 0.555570, -0.195090}
+};
+
 typedef enum SegmentMarker {
     SOI = 0xFFD8,
     COM = 0xFFFE,
@@ -139,10 +150,8 @@ static inline uint8_t clamp(int n) {
     return n < 0 ? 0 : n > 255 ? 255 : n;
 }
 
-static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t componentIndex, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
+static int decode_MCU(jpeg_data *imageData, image *im, stream *str, component_data *componentData, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
     int coeffVector[64] = {0};
-
-    component_data *componentData = imageData->componentData[componentIndex];
 
     huff_tree **huffTrees = imageData->huffTrees[componentData->hTreeId];
     quant_table *quantTable = imageData->quantTables[componentData->qTableId];
@@ -171,21 +180,12 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
         }
     }
 
-    static double idctTable[8][8];
-    if (idctTable[0][0] == 0) {
-        for (size_t u=0; u < 8; ++u) {
-            for (size_t x=0; x < 8; ++x) {
-                idctTable[u][x] = (u == 0 ? 1.0/sqrt(2.0) : 1.0) * cos(((2.0*x + 1.0) * u * M_PI) / 16.0);
-            }
-        }
-    }
-
     for (size_t y=0; y < 8 && McuY + y * vSamplingFactor < imageData->height; ++y) {
         for (size_t x=0; x < 8 && McuX + x * hSamplingFactor < imageData->width; ++x) {
             double sum = 0;
             for (size_t u=0; u < imageData->precision; ++u) {
                 for (size_t v=0; v < imageData->precision; ++v) { 
-                    sum += coeffMatrix[v][u] * idctTable[u][x] * idctTable[v][y];
+                    sum += coeffMatrix[v][u] * IDCT_TABLE[u][x] * IDCT_TABLE[v][y];
                 }
             }
 
@@ -193,7 +193,6 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, size_t compo
             uint16_t globalX = McuX + x * hSamplingFactor;
             uint16_t globalY = McuY + y * vSamplingFactor;
             // printf("%d, %d: %d (%d)\n", globalX, globalY, value, componentData->id);
-            // img_set_pixel(im, globalX, globalY, componentData->id - 1, value);
 
             for (size_t v=0; v < vSamplingFactor && globalY + v < imageData->height; ++v) {
                 for (size_t h=0; h < hSamplingFactor && globalX + h < imageData->width; ++h) {
@@ -231,13 +230,13 @@ static void parse_image_data(jpeg_data *imageData, image *im, uint8_t *data, siz
         for (int x=0; x < imageData->width; x += 8 * hSamplingFactor) {
             for (size_t v=0; v < vSamplingFactor; ++v) {
                 for (size_t h=0; h < hSamplingFactor; ++h) {
-                    dcCoeffs[0] = decode_MCU(imageData, im, str, 0, dcCoeffs[0], x + 8*h, y + 8*v, 1, 1);
+                    dcCoeffs[0] = decode_MCU(imageData, im, str, imageData->componentData[0], dcCoeffs[0], x + 8*h, y + 8*v, 1, 1);
                 }
             }
 
             if (imageData->componentCount == 3) {
-                dcCoeffs[1] = decode_MCU(imageData, im, str, 1, dcCoeffs[1], x, y, hSamplingFactor, vSamplingFactor);
-                dcCoeffs[2] = decode_MCU(imageData, im, str, 2, dcCoeffs[2], x, y, hSamplingFactor, vSamplingFactor);
+                dcCoeffs[1] = decode_MCU(imageData, im, str, imageData->componentData[1], dcCoeffs[1], x, y, hSamplingFactor, vSamplingFactor);
+                dcCoeffs[2] = decode_MCU(imageData, im, str, imageData->componentData[2], dcCoeffs[2], x, y, hSamplingFactor, vSamplingFactor);
             }
         }
     }
