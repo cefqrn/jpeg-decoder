@@ -1,27 +1,31 @@
 SHELL = /bin/sh
 .SUFFIXES: .o .c
-.PHONY: setup clean
+.PHONY: clean
 
 CC = gcc
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -O3
+LFLAGS = 
 
 bindir = bin
 libdir = obj
 srcdir = src
 
 objects = $(libdir)/test.o $(libdir)/jpeg.o $(libdir)/hufftree.o $(libdir)/quanttable.o $(libdir)/stream.o $(libdir)/image.o
+.SECONDARY: $(objects)
 
 all: $(bindir)/test
 
-$(bindir)/test: setup $(objects)
-	$(CC) $(CFLAGS) $(objects) -o $@
-
-$(libdir)/%.o: $(srcdir)/%.c
+$(libdir)/%.o: $(srcdir)/%.c | $(libdir)
 	$(CC) -c $(CFLAGS) $< -o $@
 
-setup:
-	[ ! -d $(libdir) ] && mkdir $(libdir) || true
-	[ ! -d $(bindir) ] && mkdir $(bindir) || true
+$(bindir)/%: $(objects) | $(bindir)
+	$(CC) $(LFLAGS) $^ -o $@
+
+$(libdir):
+	mkdir $(libdir)
+
+$(bindir):
+	mkdir $(bindir)
 
 clean:
 	rm -f $(bindir)/* $(libdir)/*
