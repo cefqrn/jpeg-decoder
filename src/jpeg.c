@@ -183,8 +183,8 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, component_da
     for (size_t y=0; y < 8 && McuY + y * vSamplingFactor < imageData->height; ++y) {
         for (size_t x=0; x < 8 && McuX + x * hSamplingFactor < imageData->width; ++x) {
             double sum = 0;
-            for (size_t u=0; u < imageData->precision; ++u) {
-                for (size_t v=0; v < imageData->precision; ++v) { 
+            for (size_t u=0; u < 8; ++u) {
+                for (size_t v=0; v < 8; ++v) { 
                     sum += coeffMatrix[v][u] * IDCT_TABLE[u][x] * IDCT_TABLE[v][y];
                 }
             }
@@ -192,11 +192,9 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, component_da
             uint8_t value = clamp(round(sum/4 + 128));
             uint16_t globalX = McuX + x * hSamplingFactor;
             uint16_t globalY = McuY + y * vSamplingFactor;
-            // printf("%d, %d: %d (%d)\n", globalX, globalY, value, componentData->id);
 
             for (size_t v=0; v < vSamplingFactor && globalY + v < imageData->height; ++v) {
                 for (size_t h=0; h < hSamplingFactor && globalX + h < imageData->width; ++h) {
-                    // printf("%lu, %lu: %d (%d)\n", globalX + h, globalY + v, value, componentData->id);
                     img_set_pixel(im, globalX + h, globalY + v, componentData->id - 1, value);
                 }
             }

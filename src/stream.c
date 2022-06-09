@@ -45,9 +45,8 @@ void str_free_stream(stream *str) {
     free(str);
 }
 
+// returns the next bit in st
 int str_get_bit(stream *str) {
-    // returns the next bit in st
-
     // if all of the bits in the current char have been outputted, move to the next char
     if (str->bitIndex == CHAR_WIDTH) {
         str->bitIndex = 0;
