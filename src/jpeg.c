@@ -146,18 +146,14 @@ static int decode_dc_diff(huff_tree *tree, stream *str, int prevCoeff) {
     return decode_MCU_value(size, bits) + prevCoeff;
 }
 
-static inline uint8_t clamp(int n) {
-    return n < 0 ? 0 : n > 255 ? 255 : n;
-}
-
-static int decode_MCU(jpeg_data *imageData, image *im, stream *str, component_data *componentData, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
+static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, component_data *componentData, stream *str, int prevDcCoeff) {
     int coeffVector[64] = {0};
 
     huff_tree **huffTrees = imageData->huffTrees[componentData->hTreeId];
     quant_table *quantTable = imageData->quantTables[componentData->qTableId];
 
-    prevDcCoeff = decode_dc_diff(huffTrees[CLASS_DC], str, prevDcCoeff);
-    coeffVector[0] = prevDcCoeff * qnt_get_quant_table_value(quantTable, 0);
+    int dcCoeff = decode_dc_diff(huffTrees[CLASS_DC], str, prevDcCoeff);
+    coeffVector[0] = dcCoeff * qnt_get_quant_table_value(quantTable, 0);
 
     for (size_t i=1; i < 64; ++i) {
         uint8_t value = huf_decode_next_symbol(huffTrees[CLASS_AC], str);
@@ -165,7 +161,7 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, component_da
         if (!value)
             break;
 
-        i += value >> 4; // skip zeroes
+        i += value >> 4;  // skip zeroes
         uint8_t size = value & 0xF;
         
         CHECK_FAIL(64 <= i, "Coefficient value index went past 64.");
@@ -173,35 +169,51 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, component_da
         coeffVector[i] = decode_MCU_value(size, str_get_bits(str, size)) * qnt_get_quant_table_value(quantTable, i);
     }
 
-    int coeffMatrix[8][8];
     for (size_t x=0; x < 8; ++x) {
         for (size_t y=0; y < 8; ++y) {
             coeffMatrix[x][y] = coeffVector[ZIGZAG[x][y]];
         }
     }
 
+    return dcCoeff;
+}
+
+static float idct(int coeffMatrix[8][8], size_t x, size_t y) {
+    float sum = 0;
+    for (size_t u=0; u < 8; ++u) {
+        for (size_t v=0; v < 8; ++v) { 
+            sum += coeffMatrix[v][u] * IDCT_TABLE[u][x] * IDCT_TABLE[v][y];
+        }
+    }
+
+    return sum / 4;
+}
+
+static inline int clamp(int n, int min, int max) {
+    return n < min ? min : n > max ? max : n;
+}
+
+static int decode_MCU(jpeg_data *imageData, image *im, stream *str, component_data *componentData, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
+    int coeffMatrix[8][8];
+    int dcCoeff = parse_coeff_matrix(coeffMatrix, imageData, componentData, str, prevDcCoeff);
+
     for (size_t y=0; y < 8 && McuY + y * vSamplingFactor < imageData->height; ++y) {
         for (size_t x=0; x < 8 && McuX + x * hSamplingFactor < imageData->width; ++x) {
-            double sum = 0;
-            for (size_t u=0; u < 8; ++u) {
-                for (size_t v=0; v < 8; ++v) { 
-                    sum += coeffMatrix[v][u] * IDCT_TABLE[u][x] * IDCT_TABLE[v][y];
-                }
-            }
+            uint8_t value = clamp(lround(idct(coeffMatrix, x, y)) + 128, 0, 255);
 
-            uint8_t value = clamp(round(sum/4 + 128));
             uint16_t globalX = McuX + x * hSamplingFactor;
             uint16_t globalY = McuY + y * vSamplingFactor;
 
             for (size_t v=0; v < vSamplingFactor && globalY + v < imageData->height; ++v) {
                 for (size_t h=0; h < hSamplingFactor && globalX + h < imageData->width; ++h) {
+                    // component id is one above index in a YUV pixel
                     img_set_pixel(im, globalX + h, globalY + v, componentData->id - 1, value);
                 }
             }
         }
     }
 
-    return prevDcCoeff;
+    return dcCoeff;
 }
 
 static void parse_image_data(jpeg_data *imageData, image *im, uint8_t *data, size_t length) {
