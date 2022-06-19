@@ -4,12 +4,6 @@
 #include <string.h>
 #include <stdio.h>
 
-typedef struct image {
-    size_t width;
-    size_t height;
-    uint8_t (**pixels)[3];
-} image;
-
 void img_print_image(image *im, size_t pixelWidth, size_t maxWidth, size_t maxHeight) {
     for (size_t y=0; y < im->height && y < maxHeight; ++y) {
         for (size_t x=0; x < im->width && x * pixelWidth < maxWidth; ++x) {
@@ -40,10 +34,6 @@ image *img_create_image(size_t width, size_t height) {
     }
 
     return im;
-}
-
-void img_set_pixel(image *im, size_t x, size_t y, size_t componentIndex, uint8_t componentValue) {
-    im->pixels[x][y][componentIndex] = componentValue;
 }
 
 static inline uint8_t clamp(double n) {
@@ -79,12 +69,4 @@ void img_rgb_to_yuv(image *im) {
 void img_free_image(image *im) {
     FREE_2D_ARRAY(im->pixels, im->width);
     free(im);
-}
-
-size_t img_get_width(image *im) {
-    return im->width;
-}
-
-size_t img_get_height(image *im) {
-    return im->height;
 }

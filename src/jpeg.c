@@ -205,7 +205,7 @@ static int decode_MCU(jpeg_data *imageData, image *im, stream *str, component_da
             for (size_t v=0; v < vSamplingFactor && globalY + v < imageData->height; ++v) {
                 for (size_t h=0; h < hSamplingFactor && globalX + h < imageData->width; ++h) {
                     // component id is one above index in a YUV pixel
-                    img_set_pixel(im, globalX + h, globalY + v, componentData->id - 1, value);
+                    im->pixels[globalX + h][globalY + v][componentData->id - 1] = value;
                 }
             }
         }
