@@ -2,7 +2,6 @@
 #include "stream.h"
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #define CHAR_WIDTH 8
 
@@ -12,16 +11,6 @@ typedef struct h_stream {
     size_t charIndex;
     size_t bitIndex;
 } stream;
-
-void str_print_stream(stream *str) {
-    for (size_t i=0; i < str->length; i += 2) {
-        for (size_t j=0; j < 2 && i + j < str->length; ++j) {
-            printf("%02X", str->data[i + j]);
-        }
-
-        printf(" ");
-    }
-}
 
 stream *str_create_stream(uint8_t *data, size_t length) {
     CHECK_FAIL(data == NULL, "Could not create stream with null data.");
@@ -38,11 +27,6 @@ stream *str_create_stream(uint8_t *data, size_t length) {
     memcpy(str->data, data, str->length);
 
     return str;
-}
-
-void str_free_stream(stream *str) {
-    free(str->data);
-    free(str);
 }
 
 // returns the next bit in st
@@ -66,4 +50,9 @@ int str_get_bits(stream *str, int n) {
     }
 
     return value;
+}
+
+void str_free_stream(stream *str) {
+    free(str->data);
+    free(str);
 }

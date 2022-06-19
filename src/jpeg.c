@@ -49,9 +49,7 @@ typedef enum SegmentMarker {
 typedef enum ComponentId {
     ID_Y = 1,
     ID_CB = 2,
-    ID_CR = 3,
-    ID_I = 4,
-    ID_Q = 5
+    ID_CR = 3
 } ComponentId;
 
 typedef struct component_data {
@@ -112,7 +110,7 @@ static void parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
     size_t offset = 0;
     while (offset < length) {
         huff_tree *tree = huf_parse_huff_tree(data, &offset);
-        imageData->huffTrees[huf_get_huff_tree_id(tree)][huf_get_huff_tree_class(tree)] = tree;
+        imageData->huffTrees[tree->id][tree->class] = tree;
     }
 }
 
@@ -120,7 +118,7 @@ static void parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
     size_t offset = 0;
     while (offset < length) {
         quant_table *table = qnt_parse_quant_table(data, &offset);
-        imageData->quantTables[qnt_get_quant_table_number(table)] = table;
+        imageData->quantTables[table->number] = table;
     }
 }
 
@@ -153,7 +151,7 @@ static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, compo
     quant_table *quantTable = imageData->quantTables[componentData->qTableId];
 
     int dcCoeff = decode_dc_diff(huffTrees[CLASS_DC], str, prevDcCoeff);
-    coeffVector[0] = dcCoeff * qnt_get_quant_table_value(quantTable, 0);
+    coeffVector[0] = dcCoeff * quantTable->values[0];
 
     for (size_t i=1; i < 64; ++i) {
         uint8_t value = huf_decode_next_symbol(huffTrees[CLASS_AC], str);
@@ -166,7 +164,7 @@ static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, compo
         
         CHECK_FAIL(64 <= i, "Coefficient value index went past 64.");
 
-        coeffVector[i] = decode_MCU_value(size, str_get_bits(str, size)) * qnt_get_quant_table_value(quantTable, i);
+        coeffVector[i] = decode_MCU_value(size, str_get_bits(str, size)) * quantTable->values[i];
     }
 
     for (size_t x=0; x < 8; ++x) {

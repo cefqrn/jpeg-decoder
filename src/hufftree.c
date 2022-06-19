@@ -3,7 +3,6 @@
 #include "stream.h"
 #include <stdbool.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 #define CODE_LENGTH_COUNT 16
 
@@ -15,12 +14,6 @@ typedef struct huff_node {
     bool hasRight;
     bool hasSymbol;
 } huff_node;
-
-typedef struct huff_tree {
-    huff_node *root;
-    HuffTableClass class;
-    uint8_t id;
-} huff_tree;
 
 static huff_node *create_huff_node() {
     huff_node *node = calloc(1, sizeof(huff_node));
@@ -85,42 +78,6 @@ huff_tree *huf_parse_huff_tree(uint8_t *data, size_t *offset) {
     return tree;
 }
 
-static void free_huff_node(huff_node *node) {
-    if (node->hasLeft) free_huff_node(node->left);
-    if (node->hasRight) free_huff_node(node->right);
-
-    free(node);
-}
-
-void huf_free_huff_tree(huff_tree *tree) {
-    free_huff_node(tree->root);
-    free(tree);
-}
-
-static void print_huff_node(huff_node *node, int indentationDepth) {
-    if (node->hasLeft) print_huff_node(node->left, indentationDepth + 1);
-
-    for (int i=0; i < indentationDepth; ++i) printf("  ");
-
-    if (node->hasSymbol) printf("%02X\n", node->symbol);
-    else puts("--");
-
-    if (node->hasRight) print_huff_node(node->right, indentationDepth + 1);
-}
-
-void huf_print_huff_tree(huff_tree *tree) {
-    print_huff_node(tree->root, 0);
-    printf("\n");
-}
-
-uint8_t huf_get_huff_tree_class(huff_tree *tree) {
-    return tree->class;
-}
-
-uint8_t huf_get_huff_tree_id(huff_tree *tree) {
-    return tree->id;
-}
-
 uint8_t huf_decode_next_symbol(huff_tree *tree, stream *str) {
     huff_node *curr = tree->root;
 
@@ -139,4 +96,16 @@ uint8_t huf_decode_next_symbol(huff_tree *tree, stream *str) {
     } while (!curr->hasSymbol);
 
     return curr->symbol;
+}
+
+static void free_huff_node(huff_node *node) {
+    if (node->hasLeft) free_huff_node(node->left);
+    if (node->hasRight) free_huff_node(node->right);
+
+    free(node);
+}
+
+void huf_free_huff_tree(huff_tree *tree) {
+    free_huff_node(tree->root);
+    free(tree);
 }
