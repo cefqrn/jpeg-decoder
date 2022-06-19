@@ -4,7 +4,7 @@ SHELL = /bin/sh
 
 CC = gcc
 CFLAGS = -g -Wall -O3
-LFLAGS = 
+LDFLAGS =
 
 bindir = bin
 libdir = obj
@@ -19,7 +19,7 @@ $(libdir)/%.o: $(srcdir)/%.c | $(libdir)
 	$(CC) -c $(CFLAGS) $< -o $@
 
 $(bindir)/%: $(objects) | $(bindir)
-	$(CC) $(LFLAGS) $^ -o $@
+	$(CC) $(LDFLAGS) $^ -o $@
 
 $(libdir):
 	mkdir $(libdir)
