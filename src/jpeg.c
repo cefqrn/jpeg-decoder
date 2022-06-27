@@ -76,12 +76,21 @@ typedef struct jpeg_data {
 } jpeg_data;
 
 static void parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
-    CHECK_FAIL((imageData->versionMajor = data[5]) != 1, "Invalid major version number: %d", imageData->versionMajor);
+    char identifier[5];
+    strncpy(identifier, (char *)data, 5);
 
-    imageData->versionMinor = data[6];
-    imageData->pixelDensityUnit = data[7];
-    imageData->hPixelDensity = GET_WORD(data, 8);
-    imageData->vPixelDensity = GET_WORD(data, 10);
+    if (strcmp(identifier, "JFIF") == 0) {
+        CHECK_FAIL((imageData->versionMajor = data[5]) != 1, "Invalid major version number: %d", imageData->versionMajor);
+
+        imageData->versionMinor = data[6];
+        imageData->pixelDensityUnit = data[7];
+        imageData->hPixelDensity = GET_WORD(data, 8);
+        imageData->vPixelDensity = GET_WORD(data, 10);
+    } else if (strcmp(identifier, "JFXX") == 0) {
+        // Thumbnails are ignored
+    } else {
+        FAIL("Invalid APP0 identifier: %s", identifier);
+    }
 }
 
 static void parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
@@ -268,7 +277,7 @@ static void parse_segments(jpeg_data *imageData, FILE *fp) {
             case DHT: parse_DHT(imageData, data, length); break;
             case DQT: parse_DQT(imageData, data, length); break;
             case SOS: parse_SOS(imageData, data, length); break;
-            default: warnx("Could not recognize marker: %04X", marker);
+            default: WARN("Could not recognize marker: %04X", marker);
         }
 
         free(data);
