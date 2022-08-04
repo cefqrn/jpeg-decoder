@@ -1,10 +1,22 @@
 # jpeg-decoder
 A jpeg decoder originally made to solve a [Kattis problem](https://open.kattis.com/problems/coincounter).
 
+The `test` program prints out the supplied image using spaces colored with [ANSI 24-bit color escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code#24-bit). Any comments in the image are also printed before the image.
+
 The examples are my own images. [Krita](https://krita.org/en/) was used to scale and remove chroma subsampling from the `no_subsampling` examples. [FFmpeg](https://ffmpeg.org/) was used otherwise.
 
+## Currently Unsupported
+* EXIF JPEGs
+* Progressive JPEGs
+
 ## Usage
-`./bin/test <file>`
+```bash
+# setup
+make
+
+# print image
+./bin/test <file>
+```
 
 ## Resources
 * [JPEG Huffman Coding Tutorial](https://www.impulseadventure.com/photo/jpeg-huffman-coding.html) \[[archive](https://web.archive.org/web/20211205035857/https://www.impulseadventure.com/photo/jpeg-huffman-coding.html)\] by [Calvin Hass (ImpulseAdventure)](https://www.impulseadventure.com) \[[archive](https://web.archive.org/web/20211202094539/https://www.impulseadventure.com)\] \[[github](https://github.com/ImpulseAdventure)\], 2009
