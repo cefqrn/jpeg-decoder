@@ -9,8 +9,9 @@ void img_print_image(image *im, size_t pixelWidth, size_t maxWidth, size_t maxHe
         for (size_t x=0; x < im->width && x * pixelWidth < maxWidth; ++x) {
             char color[64];
             snprintf(color, 64, "\x1b[48;2;%u;%u;%um", im->pixels[x][y][0], im->pixels[x][y][1], im->pixels[x][y][2]);
+            printf("%s", color);
             for (size_t i=0; i < pixelWidth; ++i) {
-                printf("%s ", color);
+                putchar(' ');
             }
         }
         
