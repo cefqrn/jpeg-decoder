@@ -4,11 +4,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct h_stream stream;
+typedef struct h_bit_stream bit_stream;
 
-stream *str_create_stream(uint8_t *data, size_t length);
-void str_free_stream(stream *str);
-int str_get_bit(stream *str);
-int str_get_bits(stream *str, int n);
+bit_stream *str_create_stream(uint8_t *data, size_t length);
+void str_free_stream(bit_stream *str);
+int str_get_bit(bit_stream *str);
+int str_get_bits(bit_stream *str, int n);
 
 #endif

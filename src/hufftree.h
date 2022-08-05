@@ -20,6 +20,6 @@ typedef struct huff_tree {
 
 huff_tree *huf_parse_huff_tree(uint8_t *data, size_t *offset);
 void huf_free_huff_tree(huff_tree *tree);
-uint8_t huf_decode_next_symbol(huff_tree *tree, stream *str);
+uint8_t huf_decode_next_symbol(huff_tree *tree, bit_stream *str);
 
 #endif

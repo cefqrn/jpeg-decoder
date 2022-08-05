@@ -78,7 +78,7 @@ huff_tree *huf_parse_huff_tree(uint8_t *data, size_t *offset) {
     return tree;
 }
 
-uint8_t huf_decode_next_symbol(huff_tree *tree, stream *str) {
+uint8_t huf_decode_next_symbol(huff_tree *tree, bit_stream *str) {
     huff_node *curr = tree->root;
 
     do {

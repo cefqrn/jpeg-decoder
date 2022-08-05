@@ -146,14 +146,14 @@ static int decode_MCU_value(uint8_t size, int16_t bits) {
     return bits;
 }
 
-static int decode_dc_diff(huff_tree *tree, stream *str, int prevCoeff) {
+static int decode_dc_diff(huff_tree *tree, bit_stream *str, int prevCoeff) {
     uint8_t size = huf_decode_next_symbol(tree, str);
     int32_t bits = str_get_bits(str, size);
 
     return decode_MCU_value(size, bits) + prevCoeff;
 }
 
-static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, component_data *componentData, stream *str, int prevDcCoeff) {
+static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, component_data *componentData, bit_stream *str, int prevDcCoeff) {
     int coeffVector[64] = {0};
 
     huff_tree **huffTrees = imageData->huffTrees[componentData->hTreeId];
@@ -200,7 +200,7 @@ static inline int clamp(int n, int min, int max) {
     return n < min ? min : n > max ? max : n;
 }
 
-static int decode_MCU(jpeg_data *imageData, image *im, stream *str, component_data *componentData, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
+static int decode_MCU(jpeg_data *imageData, image *im, bit_stream *str, component_data *componentData, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
     int coeffMatrix[8][8];
     int dcCoeff = parse_coeff_matrix(coeffMatrix, imageData, componentData, str, prevDcCoeff);
 
@@ -231,7 +231,7 @@ static void parse_image_data(jpeg_data *imageData, image *im, uint8_t *data, siz
         }
     }
 
-    stream *str = str_create_stream(data, length);
+    bit_stream *str = str_create_stream(data, length);
 
     int dcCoeffs[5] = {0};
 
