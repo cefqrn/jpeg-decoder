@@ -223,16 +223,7 @@ static int decode_MCU(jpeg_data *imageData, image *im, bit_stream *str, componen
     return dcCoeff;
 }
 
-static void parse_image_data(jpeg_data *imageData, image *im, uint8_t *data, size_t length) {
-    // get rid of byte stuffing
-    for (size_t i=0; i < length; ++i) {
-        if (data[i] == 0xFF) {
-            memcpy(data + i + 1, data + i + 2, length-- - i - 1);
-        }
-    }
-
-    bit_stream *str = str_create_stream(data, length);
-
+static void parse_image_data(jpeg_data *imageData, image *im, bit_stream *str) {
     int dcCoeffs[5] = {0};
 
     // note: this assumes both Cb and Cr have the same sampling factors
@@ -313,23 +304,8 @@ image *jpg_fparse(char *path) {
 
     image *im = img_create_image(imageData->width, imageData->height);
 
-    {
-        // get remaining file length
-        size_t index = ftell(fp);
-        fseek(fp, 0, SEEK_END);
-        size_t fileSize = ftell(fp);
-        fseek(fp, index, SEEK_SET);
-        size_t length = fileSize - index - WORD_SIZE;
-
-        uint8_t *data = malloc(length * sizeof *data);
-        CHECK_ALLOC(data, "data");
-
-        fread(data, sizeof *data, length, fp);
-
-        parse_image_data(imageData, im, data, length);
-
-        free(data);
-    }
+    bit_stream *str = str_create_bit_stream(fp);
+    parse_image_data(imageData, im, str);
 
     fclose(fp);
     free_jpeg(imageData);
