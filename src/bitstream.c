@@ -1,58 +1,54 @@
 #include "bitstream.h"
 #include "macros.h"
+#include "stdio.h"
 #include <stdlib.h>
 #include <string.h>
 
 #define CHAR_WIDTH 8
 
 typedef struct h_bit_stream {
-    uint8_t *data;
-    size_t length;
-    size_t charIndex;
+    FILE *fp;
+    char c;
     size_t bitIndex;
 } bit_stream;
 
-bit_stream *str_create_stream(uint8_t *data, size_t length) {
-    CHECK_FAIL(data == NULL, "Could not create stream with null data.");
-    CHECK_FAIL(length == 0, "Could not create stream of length 0");
-
-    bit_stream *str = calloc(length, sizeof *str);
+bit_stream *str_create_bit_stream(FILE *fp) {
+    bit_stream *str = calloc(1, sizeof *str);
     CHECK_ALLOC(str, "stream");
 
-    str->length = length;
-
-    str->data = malloc(str->length * sizeof *str->data);
-    CHECK_ALLOC(str->data, "stream data");
-
-    memcpy(str->data, data, str->length);
+    str->fp = fp;
+    str->bitIndex = 0;
 
     return str;
 }
 
-// returns the next bit in str
-int str_get_bit(bit_stream *str) {
+// returns the next bit in stream
+int str_get_bit(bit_stream *stream) {
     // if all of the bits in the current char have been outputted, move to the next char
-    if (str->bitIndex == CHAR_WIDTH) {
-        str->bitIndex = 0;
-        ++str->charIndex;
+    if (stream->bitIndex == CHAR_WIDTH) {
+        stream->bitIndex = 0;
+        
+        char c = getc(stream->fp);
+        
+        // ignore byte stuffing
+        stream->c = stream->c == (char)0xFF ? getc(stream->fp) : c;
+
+        CHECK_FAIL(feof(stream->fp), "Tried to get bit from dry stream.");
     }
 
-    // check if stream is dry
-    CHECK_FAIL(str->charIndex == str->length, "Tried to get bit from dry stream.");
-
-    return (str->data[str->charIndex] >> (CHAR_WIDTH - ++str->bitIndex)) & 0x1;
+    return (stream->c >> (CHAR_WIDTH - ++stream->bitIndex)) & 0x1;
 }
 
-int str_get_bits(bit_stream *str, int n) {
+// returns the next n bits in stream and converts returns the bit array as an integer
+int str_get_bits(bit_stream *stream, int n) {
     int value = 0;
     for (int i=0; i < n; ++i) {
-        value = (value << 1) | str_get_bit(str);
+        value = (value << 1) | str_get_bit(stream);
     }
 
     return value;
 }
 
-void str_free_stream(bit_stream *str) {
-    free(str->data);
-    free(str);
+void str_free_bit_stream(bit_stream *stream) {
+    free(stream);
 }
