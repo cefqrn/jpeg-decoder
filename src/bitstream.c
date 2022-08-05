@@ -1,5 +1,5 @@
+#include "bitstream.h"
 #include "macros.h"
-#include "stream.h"
 #include <stdlib.h>
 #include <string.h>
 

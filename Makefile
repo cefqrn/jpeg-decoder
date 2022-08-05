@@ -10,7 +10,7 @@ bindir = bin
 libdir = obj
 srcdir = src
 
-objects = $(libdir)/test.o $(libdir)/jpeg.o $(libdir)/hufftree.o $(libdir)/quanttable.o $(libdir)/stream.o $(libdir)/image.o
+objects = $(libdir)/test.o $(libdir)/jpeg.o $(libdir)/hufftree.o $(libdir)/quanttable.o $(libdir)/bitstream.o $(libdir)/image.o
 .SECONDARY: $(objects)
 
 all: $(bindir)/test

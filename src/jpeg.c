@@ -1,7 +1,7 @@
 #include "quanttable.h"
+#include "bitstream.h"
 #include "hufftree.h"
 #include "macros.h"
-#include "stream.h"
 #include "image.h"
 #include "jpeg.h"
 #include <stdlib.h>

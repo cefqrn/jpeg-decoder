@@ -1,7 +1,7 @@
 #ifndef HUFFTREE_H
 #define HUFFTREE_H
 
-#include "stream.h"
+#include "bitstream.h"
 #include <stddef.h>
 #include <stdint.h>
 

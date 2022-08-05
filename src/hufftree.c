@@ -1,6 +1,6 @@
+#include "bitstream.h"
 #include "hufftree.h"
 #include "macros.h"
-#include "stream.h"
 #include <stdbool.h>
 #include <stdlib.h>
 
