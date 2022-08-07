@@ -15,10 +15,10 @@
 #define GET_WORD(data, index) (data[index] << CHAR_WIDTH) + data[index + 1]
 
 static size_t ZIGZAG[8][8] = {
-    {0, 1, 5, 6, 14, 15, 27, 28},
-    {2, 4, 7, 13, 16, 26, 29, 42},
-    {3, 8, 12, 17, 25, 30, 41, 43},
-    {9, 11, 18, 24, 31, 40, 44, 53},
+    { 0,  1,  5,  6, 14, 15, 27, 28},
+    { 2,  4,  7, 13, 16, 26, 29, 42},
+    { 3,  8, 12, 17, 25, 30, 41, 43},
+    { 9, 11, 18, 24, 31, 40, 44, 53},
     {10, 19, 23, 32, 39, 45, 52, 54},
     {20, 22, 33, 38, 46, 51, 55, 60},
     {21, 34, 37, 47, 50, 56, 59, 61},
@@ -26,28 +26,28 @@ static size_t ZIGZAG[8][8] = {
 };
 
 static double IDCT_TABLE[8][8] = {
-    {0.707107, 0.707107, 0.707107, 0.707107, 0.707107, 0.707107, 0.707107, 0.707107},
-    {0.980785, 0.831470, 0.555570, 0.195090, -0.195090, -0.555570, -0.831470, -0.980785},
-    {0.923880, 0.382683, -0.382683, -0.923880, -0.923880, -0.382683, 0.382683, 0.923880},
-    {0.831470, -0.195090, -0.980785, -0.555570, 0.555570, 0.980785, 0.195090, -0.831470},
-    {0.707107, -0.707107, -0.707107, 0.707107, 0.707107, -0.707107, -0.707107, 0.707107},
-    {0.555570, -0.980785, 0.195090, 0.831470, -0.831470, -0.195090, 0.980785, -0.555570},
-    {0.382683, -0.923880, 0.923880, -0.382683, -0.382683, 0.923880, -0.923880, 0.382683},
-    {0.195090, -0.555570, 0.831470, -0.980785, 0.980785, -0.831470, 0.555570, -0.195090}
+    {0.707107,  0.707107,  0.707107,  0.707107,  0.707107,  0.707107,  0.707107,  0.707107},
+    {0.980785,  0.831470,  0.555570,  0.195090, -0.195090, -0.555570, -0.831470, -0.980785},
+    {0.923880,  0.382683, -0.382683, -0.923880, -0.923880, -0.382683,  0.382683,  0.923880},
+    {0.831470, -0.195090, -0.980785, -0.555570,  0.555570,  0.980785,  0.195090, -0.831470},
+    {0.707107, -0.707107, -0.707107,  0.707107,  0.707107, -0.707107, -0.707107,  0.707107},
+    {0.555570, -0.980785,  0.195090,  0.831470, -0.831470, -0.195090,  0.980785, -0.555570},
+    {0.382683, -0.923880,  0.923880, -0.382683, -0.382683,  0.923880, -0.923880,  0.382683},
+    {0.195090, -0.555570,  0.831470, -0.980785,  0.980785, -0.831470,  0.555570, -0.195090}
 };
 
 typedef enum SegmentMarker {
-    SOI = 0xFFD8,
-    COM = 0xFFFE,
-    APP0 = 0xFFE0,
-    SOF = 0xFFC0,
-    DHT = 0xFFC4,
-    DQT = 0xFFDB,
-    SOS = 0xFFDA,
+    SOI  = 0xFFD8,  // Start of Image
+    COM  = 0xFFFE,  // Comment
+    APP0 = 0xFFE0,  // Application Marker (JFIF)
+    SOF0 = 0xFFC0,  // Start of Frame (Baseline)
+    DHT  = 0xFFC4,  // Define Huffman Table
+    DQT  = 0xFFDB,  // Define Quantization Table
+    SOS  = 0xFFDA,  // Start of Scan
 } SegmentMarker;
 
 typedef enum ComponentId {
-    ID_Y = 1,
+    ID_Y  = 1,
     ID_CB = 2,
     ID_CR = 3
 } ComponentId;
@@ -93,7 +93,7 @@ static void parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
     }
 }
 
-static void parse_SOF(jpeg_data *imageData, uint8_t *data, size_t length) {
+static void parse_SOF0(jpeg_data *imageData, uint8_t *data, size_t length) {
     imageData->precision = data[0];
     imageData->height = GET_WORD(data, 1);
     imageData->width = GET_WORD(data, 3);
@@ -223,7 +223,7 @@ static int decode_MCU(jpeg_data *imageData, image *im, bit_stream *str, componen
     return dcCoeff;
 }
 
-static void parse_image_data(jpeg_data *imageData, image *im, bit_stream *str) {
+static image *read_image(bit_stream *str, jpeg_data *imageData) {
     int dcCoeffs[5] = {0};
 
     // note: this assumes both Cb and Cr have the same sampling factors
@@ -233,6 +233,8 @@ static void parse_image_data(jpeg_data *imageData, image *im, bit_stream *str) {
         hSamplingFactor = imageData->componentData[0]->hSamplingFactor / imageData->componentData[1]->hSamplingFactor;
         vSamplingFactor = imageData->componentData[0]->vSamplingFactor / imageData->componentData[1]->vSamplingFactor;
     }
+
+    image *im = img_create_image(imageData->width, imageData->height);
     
     for (int y=0; y < imageData->height; y += 8 * vSamplingFactor) {
         for (int x=0; x < imageData->width; x += 8 * hSamplingFactor) {
@@ -248,31 +250,39 @@ static void parse_image_data(jpeg_data *imageData, image *im, bit_stream *str) {
             }
         }
     }
+
+    return im;
 }
 
-static void parse_segments(jpeg_data *imageData, FILE *fp) {
-    SegmentMarker marker = 0;
+static jpeg_data *read_image_data(FILE *fp) {
+    jpeg_data *imageData = calloc(1, sizeof *imageData);
+    CHECK_ALLOC(imageData, "image data");
+
+    SegmentMarker marker;
+
     do {
         marker = READ_WORD(fp);
-
         size_t length = READ_WORD(fp) - WORD_SIZE;
+
         uint8_t *data = malloc(length * sizeof *data);
         CHECK_ALLOC(data, "data");
 
-        fread(data, sizeof(*data), length, fp);
+        fread(data, sizeof *data, length, fp);
 
         switch (marker) {
-            case COM: printf("Comment: \"%s\"\n", data); break;
+            case COM:  printf("Comment: \"%s\"\n", data);   break;
             case APP0: parse_APP0(imageData, data, length); break;
-            case SOF: parse_SOF(imageData, data, length); break;
-            case DHT: parse_DHT(imageData, data, length); break;
-            case DQT: parse_DQT(imageData, data, length); break;
-            case SOS: parse_SOS(imageData, data, length); break;
-            default: WARN("Could not recognize marker: %04X", marker);
+            case SOF0: parse_SOF0(imageData, data, length); break;
+            case DHT:  parse_DHT(imageData, data, length);  break;
+            case DQT:  parse_DQT(imageData, data, length);  break;
+            case SOS:  parse_SOS(imageData, data, length);  break;
+            default:   WARN("Could not recognize marker: %04X", marker);
         }
 
         free(data);
     } while (marker != SOS);
+
+    return imageData;
 }
 
 static void free_jpeg(jpeg_data *data) {
@@ -295,20 +305,25 @@ image *jpg_fparse(char *path) {
     FILE *fp = fopen(path, "r");
     CHECK_FAIL(fp == NULL, "Could not open file.");
 
-    for (uint16_t word = READ_WORD(fp); word != SOI; word = (word << CHAR_WIDTH) + fgetc(fp)) {}
+    // read file until the start of the image is reached
+    {
+        uint16_t word = READ_WORD(fp);
+        while (word != SOI && !feof(fp)) {
+            word = (word << CHAR_WIDTH) + getc(fp);
+        }
 
-    jpeg_data *imageData = calloc(1, sizeof *imageData);
-    CHECK_ALLOC(imageData, "image data");
+        CHECK_FAIL(word != SOI, "Start of image never reached.");
+    }
 
-    parse_segments(imageData, fp);
-
-    image *im = img_create_image(imageData->width, imageData->height);
+    jpeg_data *imageData = read_image_data(fp);
 
     bit_stream *str = str_create_bit_stream(fp);
-    parse_image_data(imageData, im, str);
+    image *im = read_image(str, imageData);
+
+    str_free_bit_stream(str);
+    free_jpeg(imageData);
 
     fclose(fp);
-    free_jpeg(imageData);
 
     return im;
 }
