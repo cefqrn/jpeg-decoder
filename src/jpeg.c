@@ -223,7 +223,7 @@ static int decode_MCU(jpeg_data *imageData, image *im, bit_stream *str, componen
     return dcCoeff;
 }
 
-static image *read_image(bit_stream *str, jpeg_data *imageData) {
+static void read_image(image* im, bit_stream *str, jpeg_data *imageData) {
     int dcCoeffs[5] = {0};
 
     // note: this assumes both Cb and Cr have the same sampling factors
@@ -233,8 +233,6 @@ static image *read_image(bit_stream *str, jpeg_data *imageData) {
         hSamplingFactor = imageData->componentData[0]->hSamplingFactor / imageData->componentData[1]->hSamplingFactor;
         vSamplingFactor = imageData->componentData[0]->vSamplingFactor / imageData->componentData[1]->vSamplingFactor;
     }
-
-    image *im = img_create_image(imageData->width, imageData->height);
     
     for (int y=0; y < imageData->height; y += 8 * vSamplingFactor) {
         for (int x=0; x < imageData->width; x += 8 * hSamplingFactor) {
@@ -250,14 +248,9 @@ static image *read_image(bit_stream *str, jpeg_data *imageData) {
             }
         }
     }
-
-    return im;
 }
 
-static jpeg_data *read_image_data(FILE *fp) {
-    jpeg_data *imageData = calloc(1, sizeof *imageData);
-    CHECK_ALLOC(imageData, "image data");
-
+static void read_image_data(jpeg_data *imageData,FILE *fp) {
     SegmentMarker marker;
 
     do {
@@ -281,8 +274,6 @@ static jpeg_data *read_image_data(FILE *fp) {
 
         free(data);
     } while (marker != SOS);
-
-    return imageData;
 }
 
 static void free_jpeg(jpeg_data *data) {
@@ -315,10 +306,13 @@ image *jpg_fparse(char *path) {
         CHECK_FAIL(word != SOI, "Start of image never reached.");
     }
 
-    jpeg_data *imageData = read_image_data(fp);
-
+    jpeg_data *imageData = calloc(1, sizeof *imageData);
+    CHECK_ALLOC(imageData, "image data");
+    read_image_data(imageData, fp);
+    
     bit_stream *str = str_create_bit_stream(fp);
-    image *im = read_image(str, imageData);
+    image *im = img_create_image(imageData->width, imageData->height);
+    read_image(im, str, imageData);
 
     str_free_bit_stream(str);
     free_jpeg(imageData);
