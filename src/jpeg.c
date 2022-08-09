@@ -204,15 +204,15 @@ static int decode_MCU(jpeg_data *imageData, image *im, bit_stream *str, componen
     int coeffMatrix[8][8];
     int dcCoeff = parse_coeff_matrix(coeffMatrix, imageData, componentData, str, prevDcCoeff);
 
-    for (size_t y=0; y < 8 && McuY + y * vSamplingFactor < imageData->height; ++y) {
-        for (size_t x=0; x < 8 && McuX + x * hSamplingFactor < imageData->width; ++x) {
+    for (size_t x=0; x < 8 && McuX + x * hSamplingFactor < imageData->width; ++x) {
+        for (size_t y=0; y < 8 && McuY + y * vSamplingFactor < imageData->height; ++y) {
             uint8_t value = clamp(lround(idct(coeffMatrix, x, y)) + 128, 0, 255);
 
             uint16_t globalX = McuX + x * hSamplingFactor;
             uint16_t globalY = McuY + y * vSamplingFactor;
 
-            for (size_t v=0; v < vSamplingFactor && globalY + v < imageData->height; ++v) {
-                for (size_t h=0; h < hSamplingFactor && globalX + h < imageData->width; ++h) {
+            for (size_t h=0; h < hSamplingFactor && globalX + h < imageData->width; ++h) {
+                for (size_t v=0; v < vSamplingFactor && globalY + v < imageData->height; ++v) {
                     // component id is one above index in a YUV pixel
                     im->pixels[globalX + h][globalY + v][componentData->id - 1] = value;
                 }
