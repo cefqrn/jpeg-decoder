@@ -63,14 +63,14 @@ typedef struct component_data {
 typedef struct jpeg_data {
     uint16_t quantTables[64][2];
     huffnode huffTrees[2][2];
-    component_data **componentData;
+    component_data componentData[3];
     uint16_t width;
     uint16_t height;
+    uint16_t hPixelDensity;
+    uint16_t vPixelDensity;
     uint8_t versionMajor;
     uint8_t versionMinor;
     uint8_t pixelDensityUnit;
-    uint8_t hPixelDensity;
-    uint8_t vPixelDensity;
     uint8_t precision;
     uint8_t componentCount;
 } jpeg_data;
@@ -86,9 +86,8 @@ static void parse_APP0(jpeg_data *imageData, uint8_t *data) {
         imageData->pixelDensityUnit = data[7];
         imageData->hPixelDensity = GET_WORD(data, 8);
         imageData->vPixelDensity = GET_WORD(data, 10);
-    } else if (strcmp(identifier, "JFXX") == 0) {
+    } else if (strcmp(identifier, "JFXX")) {
         // Thumbnails are ignored
-    } else {
         FAIL("Invalid APP0 identifier: %s", identifier);
     }
 }
@@ -99,19 +98,13 @@ static void parse_SOF0(jpeg_data *imageData, uint8_t *data) {
     imageData->width = GET_WORD(data, 3);
     imageData->componentCount = data[5];
 
-    imageData->componentData = malloc(imageData->componentCount * sizeof *imageData->componentData);
-    CHECK_ALLOC(imageData->componentData, "image component data");
-
     for (size_t i=0; i < imageData->componentCount; ++i) {
-        component_data *currComponentData = malloc(sizeof *currComponentData);
-        CHECK_ALLOC(currComponentData, "component data");
-
-        currComponentData->id = data[6 + i*3];
-        currComponentData->vSamplingFactor = data[7 + i*3] >> 4;
-        currComponentData->hSamplingFactor = data[7 + i*3] & 0xF;
-        currComponentData->qTableId = data[8 + i*3] & 0xF;
-
-        imageData->componentData[i] = currComponentData;
+        imageData->componentData[i] = (component_data){
+            .id = data[6 + i*3],
+            .vSamplingFactor = data[7 + i*3] >> 4,
+            .hSamplingFactor = data[7 + i*3] & 0xF,
+            .qTableId = data[8 + i*3] & 0xF
+        };
     }
 }
 
@@ -140,11 +133,11 @@ static void parse_DQT(jpeg_data *imageData, uint8_t *data) {
 static void parse_SOS(jpeg_data *imageData, uint8_t *data) {
     uint8_t componentCount = data[0];
     for (size_t i=0; i < componentCount; ++i) {
-        imageData->componentData[i]->hTreeId = data[2 + i * 2] >> 4;
+        imageData->componentData[i].hTreeId = data[2 + i * 2] >> 4;
     }
 }
 
-static int decode_MCU_value(uint8_t size, int16_t bits) {
+static inline int decode_MCU_value(uint8_t size, int16_t bits) {
     if (!(bits >> (size - 1))) {
         bits += 1 - (1 << size);
     }
@@ -152,18 +145,18 @@ static int decode_MCU_value(uint8_t size, int16_t bits) {
     return bits;
 }
 
-static int decode_dc_diff(huffnode *tree, bitstream *str, int prevCoeff) {
+static inline int decode_dc_diff(huffnode *tree, bitstream *str, int prevCoeff) {
     uint8_t size = hufftree_decode_next_symbol(tree, str);
     int32_t bits = bitstream_get_bits(str, size);
 
     return decode_MCU_value(size, bits) + prevCoeff;
 }
 
-static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, component_data *componentData, bitstream *str, int prevDcCoeff) {
+static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, component_data componentData, bitstream *str, int prevDcCoeff) {
     int coeffVector[64] = {0};
 
-    huffnode *huffTrees = imageData->huffTrees[componentData->hTreeId];
-    uint16_t *quantTable = imageData->quantTables[componentData->qTableId];
+    huffnode *huffTrees = imageData->huffTrees[componentData.hTreeId];
+    uint16_t *quantTable = imageData->quantTables[componentData.qTableId];
 
     int dcCoeff = decode_dc_diff(huffTrees + CLASS_DC, str, prevDcCoeff);
     coeffVector[0] = dcCoeff * quantTable[0];
@@ -206,21 +199,23 @@ static inline int clamp(int n, int min, int max) {
     return n < min ? min : n > max ? max : n;
 }
 
-static int decode_MCU(jpeg_data *imageData, image *im, bitstream *str, component_data *componentData, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
+static int decode_MCU(jpeg_data *imageData, image im, bitstream *str, component_data componentData, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
     int coeffMatrix[8][8];
     int dcCoeff = parse_coeff_matrix(coeffMatrix, imageData, componentData, str, prevDcCoeff);
 
-    for (size_t x=0; x < 8 && McuX + x * hSamplingFactor < imageData->width; ++x) {
-        for (size_t y=0; y < 8 && McuY + y * vSamplingFactor < imageData->height; ++y) {
+    image_info imageInfo = image_info_of(im);
+
+    for (size_t x=0; x < 8 && McuX + x * hSamplingFactor < imageInfo.width; ++x) {
+        for (size_t y=0; y < 8 && McuY + y * vSamplingFactor < imageInfo.height; ++y) {
             uint8_t value = clamp(lround(idct(coeffMatrix, x, y)) + 128, 0, 255);
 
             uint16_t globalX = McuX + x * hSamplingFactor;
             uint16_t globalY = McuY + y * vSamplingFactor;
 
-            for (size_t h=0; h < hSamplingFactor && globalX + h < imageData->width; ++h) {
-                for (size_t v=0; v < vSamplingFactor && globalY + v < imageData->height; ++v) {
+            for (size_t h=0; h < hSamplingFactor && globalX + h < imageInfo.width; ++h) {
+                for (size_t v=0; v < vSamplingFactor && globalY + v < imageInfo.height; ++v) {
                     // component id is one above index in a YUV pixel
-                    im->pixels[globalX + h][globalY + v][componentData->id - 1] = value;
+                    im[(globalY + v) * imageInfo.width + (globalX + h)].data[componentData.id - 1] = value;
                 }
             }
         }
@@ -229,15 +224,15 @@ static int decode_MCU(jpeg_data *imageData, image *im, bitstream *str, component
     return dcCoeff;
 }
 
-static void read_image(image *im, bitstream *str, jpeg_data *imageData) {
+static void read_image(image im, bitstream *str, jpeg_data *imageData) {
     int dcCoeffs[5] = {0};
 
     // note: this assumes both Cb and Cr have the same sampling factors
     size_t hSamplingFactor = 1;
     size_t vSamplingFactor = 1;
     if (imageData->componentCount == 3) {
-        hSamplingFactor = imageData->componentData[0]->hSamplingFactor / imageData->componentData[1]->hSamplingFactor;
-        vSamplingFactor = imageData->componentData[0]->vSamplingFactor / imageData->componentData[1]->vSamplingFactor;
+        hSamplingFactor = imageData->componentData[0].hSamplingFactor / imageData->componentData[1].hSamplingFactor;
+        vSamplingFactor = imageData->componentData[0].vSamplingFactor / imageData->componentData[1].vSamplingFactor;
     }
     
     for (int y=0; y < imageData->height; y += 8 * vSamplingFactor) {
@@ -283,8 +278,6 @@ static void read_image_data(jpeg_data *imageData, FILE *fp) {
 }
 
 static void free_jpeg(jpeg_data *data) {
-    FREE_2D_ARRAY(data->componentData, data->componentCount);
-
     for (size_t i=0; i < 2; ++i) {
         for (size_t j=0; j < 2; ++j) {
             hufftree_destroy(&data->huffTrees[i][j]);
@@ -294,7 +287,7 @@ static void free_jpeg(jpeg_data *data) {
     free(data);
 }
 
-image *jpeg_fparse(char *path) {
+image jpeg_fparse(char *path) {
     FILE *fp = fopen(path, "r");
     CHECK_FAIL(fp == NULL, "Could not open file.");
 
@@ -313,7 +306,7 @@ image *jpeg_fparse(char *path) {
     read_image_data(imageData, fp);
     
     bitstream *str = bitstream_create(fp);
-    image *im = image_create(imageData->width, imageData->height);
+    image im = image_create(imageData->width, imageData->height);
     read_image(im, str, imageData);
 
     bitstream_destroy(str);

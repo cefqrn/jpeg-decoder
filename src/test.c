@@ -9,10 +9,11 @@ int main(int argc, char *argv[]) {
 
     char *path = argv[1];
 
-    image *im = jpeg_fparse(path);
+    image im = jpeg_fparse(path);
+    image_info info = image_info_of(im);
 
     image_yuv_to_rgb(im);
-    image_print(im, 2, 200, im->height);
+    image_print(im, 2, 200, info.height);
 
     image_destroy(im);
 }

@@ -3,6 +3,6 @@
 
 #include "image.h"
 
-image *jpeg_fparse(char *path);
+image jpeg_fparse(char *path);
 
 #endif
