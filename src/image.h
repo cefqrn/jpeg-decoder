@@ -12,10 +12,12 @@ typedef struct image {
     pixelArray pixels;
 } image;
 
-void img_print_image(image *im, size_t pixelWidth, size_t maxWidth, size_t maxHeight);
-image *img_create_image(size_t width, size_t height);
-void img_yuv_to_rgb(image *im);
-void img_rgb_to_yuv(image *im);
-void img_free_image(image *im);
+void image_print(image *im, size_t pixelWidth, size_t maxWidth, size_t maxHeight);
+
+image *image_create(size_t width, size_t height);
+void image_destroy(image *im);
+
+void image_yuv_to_rgb(image *im);
+void image_rgb_to_yuv(image *im);
 
 #endif

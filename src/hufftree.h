@@ -2,6 +2,8 @@
 #define HUFFTREE_H
 
 #include "bitstream.h"
+
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -10,16 +12,18 @@ typedef enum HuffTableClass {
     CLASS_AC = 1
 } HuffTableClass;
 
-typedef struct huff_node huff_node;
+typedef struct huffnode {
+    struct huffnode *left;
+    struct huffnode *right;
+    uint8_t symbol;
+    bool hasLeft;
+    bool hasRight;
+    bool hasSymbol;
+} huffnode;
 
-typedef struct huff_tree {
-    huff_node *root;
-    HuffTableClass class;
-    uint8_t id;
-} huff_tree;
+size_t hufftree_parse(huffnode *buf, uint8_t *data);
+void hufftree_destroy(huffnode *tree);
 
-huff_tree *huf_parse_huff_tree(uint8_t *data, size_t *offset);
-void huf_free_huff_tree(huff_tree *tree);
-uint8_t huf_decode_next_symbol(huff_tree *tree, bit_stream *str);
+uint8_t hufftree_decode_next_symbol(huffnode *tree, bitstream *str);
 
 #endif

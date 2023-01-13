@@ -1,10 +1,11 @@
 #include "macros.h"
 #include "image.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-void img_print_image(image *im, size_t pixelWidth, size_t maxWidth, size_t maxHeight) {
+void image_print(image *im, size_t pixelWidth, size_t maxWidth, size_t maxHeight) {
     for (size_t y=0; y < im->height && y < maxHeight; ++y) {
         for (size_t x=0; x < im->width && x * pixelWidth < maxWidth; ++x) {
             char color[64];
@@ -19,7 +20,7 @@ void img_print_image(image *im, size_t pixelWidth, size_t maxWidth, size_t maxHe
     }
 }
 
-image *img_create_image(size_t width, size_t height) {
+image *image_create(size_t width, size_t height) {
     image *im = malloc(sizeof *im);
     CHECK_ALLOC(im, "image");
 
@@ -37,11 +38,16 @@ image *img_create_image(size_t width, size_t height) {
     return im;
 }
 
+void image_destroy(image *im) {
+    FREE_2D_ARRAY(im->pixels, im->width);
+    free(im);
+}
+
 static inline uint8_t clamp(double n) {
     return n < 0 ? 0 : 255 < n ? 255 : n;
 }
 
-void img_yuv_to_rgb(image *im) {
+void image_yuv_to_rgb(image *im) {
     for (size_t x=0; x < im->width; ++x) {
         for (size_t y=0; y < im->height; ++y) {
             uint8_t pixel[3];
@@ -54,7 +60,7 @@ void img_yuv_to_rgb(image *im) {
     }
 }
 
-void img_rgb_to_yuv(image *im) {
+void image_rgb_to_yuv(image *im) {
     for (size_t x=0; x < im->width; ++x) {
         for (size_t y=0; y < im->height; ++y) {
             uint8_t pixel[3];
@@ -65,9 +71,4 @@ void img_rgb_to_yuv(image *im) {
             im->pixels[x][y][2] = clamp(    0.5 * pixel[0] - 0.4187 * pixel[1] - 0.0813 * pixel[2] + 128.0);
         }
     }
-}
-
-void img_free_image(image *im) {
-    FREE_2D_ARRAY(im->pixels, im->width);
-    free(im);
 }

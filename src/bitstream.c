@@ -1,17 +1,18 @@
 #include "bitstream.h"
 #include "macros.h"
-#include "stdio.h"
+
 #include <stdlib.h>
+#include <stdio.h>
 
 #define CHAR_WIDTH 8
 
-typedef struct h_bit_stream {
+struct bitstream {
     FILE *fp;
     char c;
     size_t bitIndex;
-} bit_stream;
+};
 
-static void get_next_char(bit_stream *stream) {
+static void get_next_char(bitstream *stream) {
     stream->bitIndex = 0;
     
     // ignore byte stuffing
@@ -20,12 +21,12 @@ static void get_next_char(bit_stream *stream) {
     }
 
     stream->c = getc(stream->fp);
-    CHECK_FAIL(feof(stream->fp), "Tried to get bit from dry stream.");
+    CHECK_FAIL(feof(stream->fp), "Tried to get bit from empty stream.");
 }
 
-bit_stream *str_create_bit_stream(FILE *fp) {
-    bit_stream *stream = calloc(1, sizeof *stream);
-    CHECK_ALLOC(stream, "stream");
+bitstream *bitstream_create(FILE *fp) {
+    bitstream *stream = calloc(1, sizeof *stream);
+    CHECK_ALLOC(stream, "bitstream");
 
     stream->fp = fp;
     stream->bitIndex = 0;
@@ -37,7 +38,7 @@ bit_stream *str_create_bit_stream(FILE *fp) {
 }
 
 // returns the next bit in stream
-int str_get_bit(bit_stream *stream) {
+int bitstream_get_bit(bitstream *stream) {
     // if all of the bits in the current char have been outputted, move to the next char
     if (stream->bitIndex == CHAR_WIDTH) get_next_char(stream);
 
@@ -45,15 +46,15 @@ int str_get_bit(bit_stream *stream) {
 }
 
 // returns the next n bits in stream and returns the bit array as an integer
-int str_get_bits(bit_stream *stream, int n) {
+int bitstream_get_bits(bitstream *stream, int n) {
     int value = 0;
     for (int i=0; i < n; ++i) {
-        value = (value << 1) | str_get_bit(stream);
+        value = (value << 1) | bitstream_get_bit(stream);
     }
 
     return value;
 }
 
-void str_free_bit_stream(bit_stream *stream) {
+void bitstream_destroy(bitstream *stream) {
     free(stream);
 }

@@ -1,6 +1,7 @@
 #include "macros.h"
 #include "image.h"
 #include "jpeg.h"
+
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {
@@ -8,10 +9,10 @@ int main(int argc, char *argv[]) {
 
     char *path = argv[1];
 
-    image *im = jpg_fparse(path);
+    image *im = jpeg_fparse(path);
 
-    img_yuv_to_rgb(im);
-    img_print_image(im, 2, 200, im->height);
+    image_yuv_to_rgb(im);
+    image_print(im, 2, 200, im->height);
 
-    img_free_image(im);
+    image_destroy(im);
 }

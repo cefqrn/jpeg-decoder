@@ -3,11 +3,12 @@
 
 #include <stdio.h>
 
-typedef struct h_bit_stream bit_stream;
+typedef struct bitstream bitstream;
 
-bit_stream *str_create_bit_stream(FILE *fp);
-void str_free_bit_stream(bit_stream *str);
-int str_get_bit(bit_stream *str);
-int str_get_bits(bit_stream *str, int n);
+bitstream *bitstream_create(FILE *fp);
+void bitstream_destroy(bitstream *str);
+
+int bitstream_get_bit(bitstream *str);
+int bitstream_get_bits(bitstream *str, int n);
 
 #endif

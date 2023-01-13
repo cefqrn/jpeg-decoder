@@ -1,16 +1,16 @@
-SHELL = /bin/sh
+SHELL=/bin/sh
 .SUFFIXES: .o .c
-.PHONY: clean
+.PHONY: clean remake
 
 CC = gcc
-CFLAGS = -g -Wall -O3
-LDFLAGS =
+CFLAGS=-g -Wall -Wextra -O3
+LDFLAGS=
 
-bindir = bin
-libdir = obj
-srcdir = src
+bindir=bin
+libdir=obj
+srcdir=src
 
-objects = $(libdir)/test.o $(libdir)/jpeg.o $(libdir)/hufftree.o $(libdir)/quanttable.o $(libdir)/bitstream.o $(libdir)/image.o
+objects=$(libdir)/test.o $(libdir)/jpeg.o $(libdir)/hufftree.o $(libdir)/bitstream.o $(libdir)/image.o
 .SECONDARY: $(objects)
 
 all: $(bindir)/test
@@ -28,4 +28,8 @@ $(bindir):
 	mkdir $(bindir)
 
 clean:
-	rm -f $(bindir)/* $(libdir)/*
+	rm -rf $(bindir)/* $(libdir)/*
+
+remake:
+	make clean
+	make

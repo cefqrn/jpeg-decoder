@@ -1,9 +1,9 @@
-#include "quanttable.h"
 #include "bitstream.h"
 #include "hufftree.h"
 #include "macros.h"
 #include "image.h"
 #include "jpeg.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -14,7 +14,7 @@
 #define READ_WORD(fp) getc(fp) << CHAR_WIDTH | getc(fp)
 #define GET_WORD(data, index) (data[index] << CHAR_WIDTH) + data[index + 1]
 
-static size_t ZIGZAG[8][8] = {
+static const size_t ZIGZAG[8][8] = {
     { 0,  1,  5,  6, 14, 15, 27, 28},
     { 2,  4,  7, 13, 16, 26, 29, 42},
     { 3,  8, 12, 17, 25, 30, 41, 43},
@@ -25,7 +25,7 @@ static size_t ZIGZAG[8][8] = {
     {35, 36, 48, 49, 57, 58, 62, 63}
 };
 
-static double IDCT_TABLE[8][8] = {
+static const double IDCT_TABLE[8][8] = {
     {0.707107,  0.707107,  0.707107,  0.707107,  0.707107,  0.707107,  0.707107,  0.707107},
     {0.980785,  0.831470,  0.555570,  0.195090, -0.195090, -0.555570, -0.831470, -0.980785},
     {0.923880,  0.382683, -0.382683, -0.923880, -0.923880, -0.382683,  0.382683,  0.923880},
@@ -54,28 +54,28 @@ typedef enum ComponentId {
 
 typedef struct component_data {
     uint8_t id;
-    uint8_t vSamplingFactor:4;
-    uint8_t hSamplingFactor:4;
     uint8_t qTableId;
     uint8_t hTreeId;
+    uint8_t vSamplingFactor:4;
+    uint8_t hSamplingFactor:4;
 } component_data;
 
 typedef struct jpeg_data {
+    uint16_t quantTables[64][2];
+    huffnode huffTrees[2][2];
+    component_data **componentData;
+    uint16_t width;
+    uint16_t height;
     uint8_t versionMajor;
     uint8_t versionMinor;
     uint8_t pixelDensityUnit;
     uint8_t hPixelDensity;
     uint8_t vPixelDensity;
-    uint16_t width;
-    uint16_t height;
     uint8_t precision;
     uint8_t componentCount;
-    component_data **componentData;
-    huff_tree *huffTrees[2][2];
-    quant_table *quantTables[2];
 } jpeg_data;
 
-static void parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
+static void parse_APP0(jpeg_data *imageData, uint8_t *data) {
     char identifier[5];
     strncpy(identifier, (char *)data, 5);
 
@@ -93,7 +93,7 @@ static void parse_APP0(jpeg_data *imageData, uint8_t *data, size_t length) {
     }
 }
 
-static void parse_SOF0(jpeg_data *imageData, uint8_t *data, size_t length) {
+static void parse_SOF0(jpeg_data *imageData, uint8_t *data) {
     imageData->precision = data[0];
     imageData->height = GET_WORD(data, 1);
     imageData->width = GET_WORD(data, 3);
@@ -117,21 +117,27 @@ static void parse_SOF0(jpeg_data *imageData, uint8_t *data, size_t length) {
 
 static void parse_DHT(jpeg_data *imageData, uint8_t *data, size_t length) {
     size_t offset = 0;
-    while (offset < length) {
-        huff_tree *tree = huf_parse_huff_tree(data, &offset);
-        imageData->huffTrees[tree->id][tree->class] = tree;
+
+    do {
+        size_t class = (data[offset] & 0x10) >> 4;
+        size_t id = data[offset] & 0x1;
+
+        ++offset;
+
+        offset += hufftree_parse(&imageData->huffTrees[id][class], data + offset);
+    } while (offset < length);
+}
+
+static void parse_DQT(jpeg_data *imageData, uint8_t *data) {
+    size_t dataSize = (data[0] & 0x10) >> 4 ? sizeof(uint16_t) : sizeof(uint8_t);
+    size_t id = data[0] & 0x1;
+
+    for (size_t i=0; i < 64; ++i) {
+        imageData->quantTables[id][i] = (data + i + 1)[i * (dataSize - 1)];
     }
 }
 
-static void parse_DQT(jpeg_data *imageData, uint8_t *data, size_t length) {
-    size_t offset = 0;
-    while (offset < length) {
-        quant_table *table = qnt_parse_quant_table(data, &offset);
-        imageData->quantTables[table->number] = table;
-    }
-}
-
-static void parse_SOS(jpeg_data *imageData, uint8_t *data, size_t length) {
+static void parse_SOS(jpeg_data *imageData, uint8_t *data) {
     uint8_t componentCount = data[0];
     for (size_t i=0; i < componentCount; ++i) {
         imageData->componentData[i]->hTreeId = data[2 + i * 2] >> 4;
@@ -146,24 +152,24 @@ static int decode_MCU_value(uint8_t size, int16_t bits) {
     return bits;
 }
 
-static int decode_dc_diff(huff_tree *tree, bit_stream *str, int prevCoeff) {
-    uint8_t size = huf_decode_next_symbol(tree, str);
-    int32_t bits = str_get_bits(str, size);
+static int decode_dc_diff(huffnode *tree, bitstream *str, int prevCoeff) {
+    uint8_t size = hufftree_decode_next_symbol(tree, str);
+    int32_t bits = bitstream_get_bits(str, size);
 
     return decode_MCU_value(size, bits) + prevCoeff;
 }
 
-static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, component_data *componentData, bit_stream *str, int prevDcCoeff) {
+static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, component_data *componentData, bitstream *str, int prevDcCoeff) {
     int coeffVector[64] = {0};
 
-    huff_tree **huffTrees = imageData->huffTrees[componentData->hTreeId];
-    quant_table *quantTable = imageData->quantTables[componentData->qTableId];
+    huffnode *huffTrees = imageData->huffTrees[componentData->hTreeId];
+    uint16_t *quantTable = imageData->quantTables[componentData->qTableId];
 
-    int dcCoeff = decode_dc_diff(huffTrees[CLASS_DC], str, prevDcCoeff);
-    coeffVector[0] = dcCoeff * quantTable->values[0];
+    int dcCoeff = decode_dc_diff(huffTrees + CLASS_DC, str, prevDcCoeff);
+    coeffVector[0] = dcCoeff * quantTable[0];
 
     for (size_t i=1; i < 64; ++i) {
-        uint8_t value = huf_decode_next_symbol(huffTrees[CLASS_AC], str);
+        uint8_t value = hufftree_decode_next_symbol(huffTrees + CLASS_AC, str);
 
         if (!value)
             break;
@@ -173,7 +179,7 @@ static int parse_coeff_matrix(int coeffMatrix[8][8], jpeg_data *imageData, compo
         
         CHECK_FAIL(64 <= i, "Coefficient value index went past 64.");
 
-        coeffVector[i] = decode_MCU_value(size, str_get_bits(str, size)) * quantTable->values[i];
+        coeffVector[i] = decode_MCU_value(size, bitstream_get_bits(str, size)) * quantTable[i];
     }
 
     for (size_t x=0; x < 8; ++x) {
@@ -200,7 +206,7 @@ static inline int clamp(int n, int min, int max) {
     return n < min ? min : n > max ? max : n;
 }
 
-static int decode_MCU(jpeg_data *imageData, image *im, bit_stream *str, component_data *componentData, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
+static int decode_MCU(jpeg_data *imageData, image *im, bitstream *str, component_data *componentData, int prevDcCoeff, size_t McuX, size_t McuY, size_t hSamplingFactor, size_t vSamplingFactor) {
     int coeffMatrix[8][8];
     int dcCoeff = parse_coeff_matrix(coeffMatrix, imageData, componentData, str, prevDcCoeff);
 
@@ -223,7 +229,7 @@ static int decode_MCU(jpeg_data *imageData, image *im, bit_stream *str, componen
     return dcCoeff;
 }
 
-static void read_image(image* im, bit_stream *str, jpeg_data *imageData) {
+static void read_image(image *im, bitstream *str, jpeg_data *imageData) {
     int dcCoeffs[5] = {0};
 
     // note: this assumes both Cb and Cr have the same sampling factors
@@ -250,7 +256,7 @@ static void read_image(image* im, bit_stream *str, jpeg_data *imageData) {
     }
 }
 
-static void read_image_data(jpeg_data *imageData,FILE *fp) {
+static void read_image_data(jpeg_data *imageData, FILE *fp) {
     SegmentMarker marker;
 
     do {
@@ -263,12 +269,12 @@ static void read_image_data(jpeg_data *imageData,FILE *fp) {
         fread(data, sizeof *data, length, fp);
 
         switch (marker) {
-            case COM:  printf("Comment: \"%s\"\n", data);   break;
-            case APP0: parse_APP0(imageData, data, length); break;
-            case SOF0: parse_SOF0(imageData, data, length); break;
-            case DHT:  parse_DHT(imageData, data, length);  break;
-            case DQT:  parse_DQT(imageData, data, length);  break;
-            case SOS:  parse_SOS(imageData, data, length);  break;
+            case COM:  printf("Comment: \"%s\"\n", data);  break;
+            case APP0: parse_APP0(imageData, data);        break;
+            case SOF0: parse_SOF0(imageData, data);        break;
+            case DHT:  parse_DHT(imageData, data, length); break;
+            case DQT:  parse_DQT(imageData, data);         break;
+            case SOS:  parse_SOS(imageData, data);         break;
             default:   WARN("Could not recognize marker: %04X", marker);
         }
 
@@ -281,18 +287,14 @@ static void free_jpeg(jpeg_data *data) {
 
     for (size_t i=0; i < 2; ++i) {
         for (size_t j=0; j < 2; ++j) {
-            huf_free_huff_tree(data->huffTrees[i][j]);
+            hufftree_destroy(&data->huffTrees[i][j]);
         }
-    }
-
-    for (size_t i=0; i < 2; ++i) {
-        qnt_free_quant_table(data->quantTables[i]);
     }
 
     free(data);
 }
 
-image *jpg_fparse(char *path) {
+image *jpeg_fparse(char *path) {
     FILE *fp = fopen(path, "r");
     CHECK_FAIL(fp == NULL, "Could not open file.");
 
@@ -310,11 +312,11 @@ image *jpg_fparse(char *path) {
     CHECK_ALLOC(imageData, "image data");
     read_image_data(imageData, fp);
     
-    bit_stream *str = str_create_bit_stream(fp);
-    image *im = img_create_image(imageData->width, imageData->height);
+    bitstream *str = bitstream_create(fp);
+    image *im = image_create(imageData->width, imageData->height);
     read_image(im, str, imageData);
 
-    str_free_bit_stream(str);
+    bitstream_destroy(str);
     free_jpeg(imageData);
 
     fclose(fp);
