@@ -305,11 +305,10 @@ image jpeg_fparse(char *path) {
     CHECK_ALLOC(imageData, "image data");
     read_image_data(imageData, fp);
     
-    bitstream *str = bitstream_create(fp);
+    bitstream str = bitstream_create(fp);
     image im = image_create(imageData->width, imageData->height);
-    read_image(im, str, imageData);
+    read_image(im, &str, imageData);
 
-    bitstream_destroy(str);
     free_jpeg(imageData);
 
     fclose(fp);

@@ -1,14 +1,18 @@
 #ifndef BITSTREAM_H
 #define BITSTREAM_H
 
+#include <stdint.h>
 #include <stdio.h>
 
-typedef struct bitstream bitstream;
+typedef struct {
+    FILE          *_fp;
+    unsigned       _bitIndex;
+    unsigned char  _c;
+} bitstream;
 
-bitstream *bitstream_create(FILE *fp);
-void bitstream_destroy(bitstream *str);
+bitstream bitstream_create(FILE *fp);
 
-int bitstream_get_bit(bitstream *str);
-int bitstream_get_bits(bitstream *str, int n);
+unsigned      bitstream_get_bit(bitstream *str);
+uint_fast32_t bitstream_get_bits(bitstream *str, unsigned count);
 
 #endif

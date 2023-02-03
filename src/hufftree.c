@@ -62,16 +62,12 @@ uint8_t hufftree_decode_next_symbol(huffnode *tree, bitstream *str) {
     huffnode *curr = tree;
 
     do {
-        switch (bitstream_get_bit(str)) {
-            case 1:
-                CHECK_FAIL(!curr->hasRight, "Could not find next symbol in huffnode.");
-
-                curr = curr->right;
-                break;
-            case 0:
-                CHECK_FAIL(!curr->hasLeft, "Could not find next symbol in huffnode.");
-
-                curr = curr->left;
+        if (bitstream_get_bit(str)) {
+            CHECK_FAIL(!curr->hasRight, "Could not find next symbol in huffnode.");
+            curr = curr->right;
+        } else {
+            CHECK_FAIL(!curr->hasLeft, "Could not find next symbol in huffnode.");
+            curr = curr->left;
         }
     } while (!curr->hasSymbol);
 

@@ -1,60 +1,48 @@
 #include "bitstream.h"
 #include "macros.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 
-#define CHAR_WIDTH 8
+#define BYTE_WIDTH 8
 
-struct bitstream {
-    FILE *fp;
-    char c;
-    size_t bitIndex;
-};
+static void load_char(bitstream *stream) {
+    stream->_bitIndex = 0;
 
-static void get_next_char(bitstream *stream) {
-    stream->bitIndex = 0;
-    
     // ignore byte stuffing
-    if (stream->c == (char)0xFF) {
-        getc(stream->fp);
-    }
+    if (stream->_c == 0xFF)
+        getc(stream->_fp);
 
-    stream->c = getc(stream->fp);
-    CHECK_FAIL(feof(stream->fp), "Tried to get bit from empty stream.");
+    stream->_c = getc(stream->_fp);
+
+    CHECK_FAIL(ferror(stream->_fp), "Could not read file.");
+    CHECK_FAIL(feof(stream->_fp),   "Reached end of file.");
 }
 
-bitstream *bitstream_create(FILE *fp) {
-    bitstream *stream = calloc(1, sizeof *stream);
-    CHECK_ALLOC(stream, "bitstream");
-
-    stream->fp = fp;
-    stream->bitIndex = 0;
-
-    // load in first char of the stream
-    get_next_char(stream);
-
-    return stream;
+bitstream bitstream_create(FILE *fp) {
+    return (bitstream){
+        ._fp       = fp,
+        ._bitIndex = BYTE_WIDTH  // Make the bitstream_get_bit function load in a character when it's first called.
+    };
 }
 
-// returns the next bit in stream
-int bitstream_get_bit(bitstream *stream) {
-    // if all of the bits in the current char have been outputted, move to the next char
-    if (stream->bitIndex == CHAR_WIDTH) get_next_char(stream);
+// Returns the next bit of the file.
+unsigned bitstream_get_bit(bitstream *stream) {
+    // If all of the bits in the current char have been outputted, move to the next char.
+    if (stream->_bitIndex == BYTE_WIDTH)
+        load_char(stream);
 
-    return (stream->c >> (CHAR_WIDTH - ++stream->bitIndex)) & 0x1;
+    return (stream->_c >> (BYTE_WIDTH - ++stream->_bitIndex)) & 0x1;
 }
 
-// returns the next n bits in stream and returns the bit array as an integer
-int bitstream_get_bits(bitstream *stream, int n) {
-    int value = 0;
-    for (int i=0; i < n; ++i) {
+// Returns the next count bits of the file in the stream as an integer.
+// count must be 32 or less.
+uint_fast32_t bitstream_get_bits(bitstream *stream, unsigned count) {
+    CHECK_FAIL(count > 32, "Can't get more than 32 bits from a stream at a time.");
+
+    uint_fast32_t value = 0;
+    for (unsigned i=0; i < count; ++i)
         value = (value << 1) | bitstream_get_bit(stream);
-    }
 
     return value;
-}
-
-void bitstream_destroy(bitstream *stream) {
-    free(stream);
 }
