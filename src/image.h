@@ -2,20 +2,19 @@
 #define IMAGE_H
 
 #include <stddef.h>
-#include <stdint.h>
 
 typedef union {
     struct {
-        uint8_t Y;
-        uint8_t U;
-        uint8_t V;
+        unsigned char Y;
+        unsigned char U;
+        unsigned char V;
     } YUV;
     struct {
-        uint8_t R;
-        uint8_t G;
-        uint8_t B;
+        unsigned char R;
+        unsigned char G;
+        unsigned char B;
     } RGB;
-    uint8_t data[3];
+    unsigned char data[3];
 } pixel;
 
 #define image_size(width, height) (width * height * sizeof(pixel))

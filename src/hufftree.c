@@ -15,10 +15,10 @@ static huffnode *create_huff_node() {
     return node;
 }
 
-static void add_symbol_to_huff_node(huffnode *root, uint16_t code, int codeLength, uint8_t symbol) {
+static void add_symbol_to_huff_node(huffnode *root, unsigned short code, unsigned codeLength, uint8_t symbol) {
     huffnode *curr = root;
 
-    for (int i=codeLength; 0 < i; --i) {
+    for (unsigned i=codeLength; i > 0; --i) {
         if ((code >> (i - 1)) & 0x1) {
             if (!curr->hasRight) {
                 curr->right = create_huff_node();
@@ -40,7 +40,7 @@ static void add_symbol_to_huff_node(huffnode *root, uint16_t code, int codeLengt
     curr->hasSymbol = true;
 }
 
-size_t hufftree_parse(huffnode *buf, uint8_t *data) {
+size_t hufftree_parse(huffnode *buf, const unsigned char *data) {
     memset(buf, 0, sizeof *buf);
 
     size_t offset = CODE_LENGTH_COUNT;
@@ -49,8 +49,8 @@ size_t hufftree_parse(huffnode *buf, uint8_t *data) {
         size_t codeCount = data[codeLength-1];
 
         for (size_t i = 0; i < codeCount; ++i) {
-            uint16_t code = codeValue++;
-            uint8_t symbol = data[offset++];
+            unsigned short code  = codeValue++;
+            unsigned char symbol = data[offset++];
 
             add_symbol_to_huff_node(buf, code, codeLength, symbol);
         }
@@ -61,8 +61,8 @@ size_t hufftree_parse(huffnode *buf, uint8_t *data) {
     return offset;
 }
 
-uint8_t hufftree_decode_next_symbol(huffnode *tree, bitstream *str) {
-    huffnode *curr = tree;
+uint8_t hufftree_decode_next_symbol(const huffnode *tree, bitstream *str) {
+    const huffnode *curr = tree;
 
     do {
         if (bitstream_get_bit(str)) {

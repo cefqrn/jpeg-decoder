@@ -21,9 +21,9 @@ typedef struct huffnode {
     bool hasSymbol;
 } huffnode;
 
-size_t hufftree_parse(huffnode *buf, uint8_t *data);
+size_t hufftree_parse(huffnode *buf, const unsigned char *data);
 void hufftree_destroy(huffnode *tree);
 
-uint8_t hufftree_decode_next_symbol(huffnode *tree, bitstream *str);
+uint8_t hufftree_decode_next_symbol(const huffnode *tree, bitstream *str);
 
 #endif
