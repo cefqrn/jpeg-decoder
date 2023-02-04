@@ -1,19 +1,39 @@
-#include "macros.h"
 #include "image.h"
 #include "jpeg.h"
 
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {
-    CHECK_FAIL(argc <= 1, "No path given.");
+    if (argc <= 1) {
+        puts("No path given.");
+        return EXIT_FAILURE;
+    }
 
-    char *path = argv[1];
+    FILE *fp = fopen(argv[1], "r");
+    if (fp == NULL) {
+        printf("Could not open file: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
 
-    image im = jpeg_fparse(path);
-    image_info info = image_info_of(im);
+    jpeg_info info;
+    jpeg_read_info(&info, fp);
 
-    image_yuv_to_rgb(im);
-    image_print(im, 2, 200, info.height);
+    pixel *im = malloc(image_size(info.width, info.height));
+    if (im == NULL) {
+        puts("Could not allocate memory for the image.");
+        return EXIT_FAILURE;
+    }
 
-    image_destroy(im);
+    jpeg_read_image(im, &info, fp);
+
+    image_yuv_to_rgb(im, info.width, info.height);
+    image_print(im, info.width, info.height, 200, info.height, 2);
+
+    free(im);
+    jpeg_free(&info);
+
+    return EXIT_SUCCESS;
 }

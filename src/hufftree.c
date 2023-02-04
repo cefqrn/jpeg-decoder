@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define CODE_LENGTH_COUNT 16
 
@@ -40,6 +41,8 @@ static void add_symbol_to_huff_node(huffnode *root, uint16_t code, int codeLengt
 }
 
 size_t hufftree_parse(huffnode *buf, uint8_t *data) {
+    memset(buf, 0, sizeof *buf);
+
     size_t offset = CODE_LENGTH_COUNT;
     int codeValue = 0;
     for (size_t codeLength = 1; codeLength <= CODE_LENGTH_COUNT; ++codeLength) {
