@@ -17,8 +17,8 @@ typedef enum SegmentMarker {
 
 void parse_APP0(jpeg_info *info, const unsigned char *data);
 void parse_SOF0(jpeg_info *info, const unsigned char *data);
-void parse_DHT(jpeg_info *info, const unsigned char *data, size_t length);
-void parse_DQT(jpeg_info *info, const unsigned char *data, size_t length);
+void parse_DHT(jpeg_info *info, const unsigned char *data, unsigned short length);
+void parse_DQT(jpeg_info *info, const unsigned char *data, unsigned short length);
 void parse_SOS(jpeg_info *info, const unsigned char *data);
 
 #endif

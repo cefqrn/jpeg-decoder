@@ -9,25 +9,31 @@
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
         puts("No path given.");
-        return EXIT_FAILURE;
+        goto FAIL;
     }
 
     FILE *fp = fopen(argv[1], "r");
     if (fp == NULL) {
         printf("Could not open file: %s\n", strerror(errno));
-        return EXIT_FAILURE;
+        goto FAIL;
     }
 
     jpeg_info info;
-    jpeg_read_info(&info, fp);
+    if (jpeg_read_info(&info, fp)) {
+        puts("Could not parse file.");
+        goto FAIL_READ_INFO;
+    }
 
     pixel *im = malloc(image_size(info.width, info.height));
     if (im == NULL) {
         puts("Could not allocate memory for the image.");
-        return EXIT_FAILURE;
+        goto FAIL_READ_INFO;
     }
 
-    jpeg_read_image(im, &info, fp);
+    if (jpeg_read_image(im, &info, fp)) {
+        puts("Could not read image.");
+        goto FAIL_ALLOCATED_IMAGE;
+    };
 
     image_yuv_to_rgb(im, info.width, info.height);
     image_print(im, info.width, info.height, 200, info.height, 2);
@@ -36,4 +42,11 @@ int main(int argc, char *argv[]) {
     jpeg_free(&info);
 
     return EXIT_SUCCESS;
+
+FAIL_ALLOCATED_IMAGE:
+    free(im);
+FAIL_READ_INFO:
+    jpeg_free(&info);
+FAIL:
+    return EXIT_FAILURE;
 }

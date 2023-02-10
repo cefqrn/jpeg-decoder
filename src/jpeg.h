@@ -27,8 +27,8 @@ typedef struct {
     unsigned char componentCount;       // Determines whether the image has chrominance data. Either 1 or 3.
 } jpeg_info;
 
-void jpeg_read_info(jpeg_info *info, FILE *fp);
-void jpeg_read_image(pixel *img, jpeg_info *info, FILE *fp);
+int jpeg_read_info(jpeg_info *info, FILE *fp);
+int jpeg_read_image(pixel *img, jpeg_info *info, FILE *fp);
 
 void jpeg_free(jpeg_info *info);
 
