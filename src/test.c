@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
         goto FAIL_ALLOCATED_IMAGE;
     };
 
-    image_yuv_to_rgb(im, info.width, info.height);
+    image_ycbcr_to_rgb(im, info.width, info.height);
     image_print(im, info.width, info.height, 200, info.height, 2);
 
     free(im);

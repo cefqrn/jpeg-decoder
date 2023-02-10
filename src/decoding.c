@@ -101,7 +101,7 @@ int decode_MCU(pixel *im, const jpeg_info *info, bitstream *str, component_data 
 
             for (unsigned h=0; h < hSamplingFactor && globalX + h < imageWidth; ++h) {
                 for (unsigned v=0; v < vSamplingFactor && globalY + v < imageHeight; ++v) {
-                    // Component id is one above index in a YUV pixel.
+                    // Component id is one above our component index.
                     im[(globalY + v) * imageWidth + (globalX + h)].data[componentData.id - 1] = value;
                 }
             }

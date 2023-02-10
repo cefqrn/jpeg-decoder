@@ -36,31 +36,31 @@ static inline double clamp(double n) {
     return n < 0 ? 0 : 255 < n ? 255 : n;
 }
 
-// Convert an image in place from YUV to RGB.
-void image_yuv_to_rgb(pixel *img, size_t width, size_t height) {
+// Convert an image in place from YCbCr to RGB.
+void image_ycbcr_to_rgb(pixel *img, size_t width, size_t height) {
     for (size_t y=0; y < height; ++y) {
         for (size_t x=0; x < width; ++x) {
             pixel prev = img[y * width + x];
 
             img[y * width + x] = (pixel){
-                .RGB.R = clamp(prev.YUV.Y                                  +   1.402 * (prev.YUV.V - 128.0)),
-                .RGB.G = clamp(prev.YUV.Y - 0.34414 * (prev.YUV.U - 128.0) - 0.71414 * (prev.YUV.V - 128.0)),
-                .RGB.B = clamp(prev.YUV.Y +   1.772 * (prev.YUV.U - 128.0))
+                .RGB.R = clamp(prev.YCbCr.Y                                     +   1.402 * (prev.YCbCr.Cr - 128.0)),
+                .RGB.G = clamp(prev.YCbCr.Y - 0.34414 * (prev.YCbCr.Cb - 128.0) - 0.71414 * (prev.YCbCr.Cr - 128.0)),
+                .RGB.B = clamp(prev.YCbCr.Y +   1.772 * (prev.YCbCr.Cb - 128.0))
             };
         }
     }
 }
 
-// Convert an image in place from RGB to YUV.
-void image_rgb_to_yuv(pixel *img, size_t width, size_t height) {
+// Convert an image in place from RGB to YCbCr.
+void image_rgb_to_ycbcr(pixel *img, size_t width, size_t height) {
     for (size_t y=0; y < height; ++y) {
         for (size_t x=0; x < width; ++x) {
             pixel prev = img[y * width + x];
 
             img[y * width + x] = (pixel){
-                .YUV.Y = clamp(  0.299 * prev.RGB.R +  0.587 * prev.RGB.G +  0.114 * prev.RGB.B),
-                .YUV.U = clamp(-0.1687 * prev.RGB.R - 0.3313 * prev.RGB.G +    0.5 * prev.RGB.B + 128.0),
-                .YUV.V = clamp(    0.5 * prev.RGB.R - 0.4187 * prev.RGB.G - 0.0813 * prev.RGB.B + 128.0)
+                .YCbCr.Y  = clamp(  0.299 * prev.RGB.R +  0.587 * prev.RGB.G +  0.114 * prev.RGB.B),
+                .YCbCr.Cb = clamp(-0.1687 * prev.RGB.R - 0.3313 * prev.RGB.G +    0.5 * prev.RGB.B + 128.0),
+                .YCbCr.Cr = clamp(    0.5 * prev.RGB.R - 0.4187 * prev.RGB.G - 0.0813 * prev.RGB.B + 128.0)
             };
         }
     }

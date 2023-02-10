@@ -6,9 +6,9 @@
 typedef union {
     struct {
         unsigned char Y;
-        unsigned char U;
-        unsigned char V;
-    } YUV;
+        unsigned char Cb;
+        unsigned char Cr;
+    } YCbCr;
     struct {
         unsigned char R;
         unsigned char G;
@@ -21,7 +21,7 @@ typedef union {
 
 void image_print(pixel *img, size_t imageWidth, size_t imageHeight, size_t maxPrintWidth, size_t maxPrintHeight, size_t pixelWidth);
 
-void image_yuv_to_rgb(pixel *img, size_t width, size_t height);
-void image_rgb_to_yuv(pixel *img, size_t width, size_t height);
+void image_ycbcr_to_rgb(pixel *img, size_t width, size_t height);
+void image_rgb_to_ycbcr(pixel *img, size_t width, size_t height);
 
 #endif
