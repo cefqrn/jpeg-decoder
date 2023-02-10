@@ -5,9 +5,8 @@ The `test` program prints out the supplied image using spaces colored with [ANSI
 
 The examples are my own images. [Krita](https://krita.org/en/) was used to scale and remove chroma subsampling from the `no_subsampling` examples. [FFmpeg](https://ffmpeg.org/) was used otherwise.
 
-## Currently Unsupported
-* EXIF JPEGs
-* Progressive JPEGs
+## Currently Supported
+* Baseline JFIF with chroma subsampling
 
 ## Usage
 ```bash
@@ -24,3 +23,5 @@ make
 * Let\'s Write a Simple JPEG Library, [Part-I: The Basics](https://koushtav.me/jpeg/tutorial/2017/11/25/lets-write-a-simple-jpeg-library-part-1) \[[github](https://github.com/TheIllusionistMirage/simple-jpeg-decoder)\] and [Part-II: The Decoder](https://koushtav.me/jpeg/tutorial/c++/decoder/2019/03/02/lets-write-a-simple-jpeg-library-part-2) \[[github](https://github.com/TheIllusionistMirage/libKPEG)\], by [Koushtav Chakrabarty (TheIllusionistMirage)](https://koushtav.me/) \[[github](https://github.com/TheIllusionistMirage)\], 2017 and 2019 respectively
 * [THE JPEG COMPRESSION and THE JPG FILE FORMAT](https://www.opennet.ru/docs/formats/jpeg.txt) by Cristy Cuturicu, 1999
 * [JPEG](https://en.wikipedia.org/wiki/JPEG) and [JPEG File Interchange Format](https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format) by Wikipedia contributors in [Wikipedia](https://en.wikipedia.org), The Free Encyclopedia, both 2022
+* [JPEG File Interchange Format](https://www.w3.org/Graphics/JPEG/jfif3.pdf) by Eric Hamilton, 1992
+* [Information technology - Digital compression and coding of continuous-tone still images - Requirements and guidelines](https://www.w3.org/Graphics/JPEG/itu-t81.pdf) by the International Telecommunication Union (ITU), the International Organization for Standardization (ISO), and the International Electrotechnical Commission (IEC), 1992
