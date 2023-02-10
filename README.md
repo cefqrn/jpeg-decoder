@@ -6,7 +6,7 @@ The `test` program prints out the supplied image using spaces colored with [ANSI
 The examples are my own images. [Krita](https://krita.org/en/) was used to scale and remove chroma subsampling from the `no_subsampling` examples. [FFmpeg](https://ffmpeg.org/) was used otherwise.
 
 ## Currently Supported
-* Baseline JFIF with chroma subsampling
+* Baseline DCT
 
 ## Usage
 ```bash
@@ -24,4 +24,4 @@ make
 * [THE JPEG COMPRESSION and THE JPG FILE FORMAT](https://www.opennet.ru/docs/formats/jpeg.txt) by Cristy Cuturicu, 1999
 * [JPEG](https://en.wikipedia.org/wiki/JPEG) and [JPEG File Interchange Format](https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format) by Wikipedia contributors in [Wikipedia](https://en.wikipedia.org), The Free Encyclopedia, both 2022
 * [JPEG File Interchange Format](https://www.w3.org/Graphics/JPEG/jfif3.pdf) by Eric Hamilton, 1992
-* [Information technology - Digital compression and coding of continuous-tone still images - Requirements and guidelines](https://www.w3.org/Graphics/JPEG/itu-t81.pdf) by the International Telecommunication Union (ITU), the International Organization for Standardization (ISO), and the International Electrotechnical Commission (IEC), 1992
+* [Information technology - Digital compression and coding of continuous-tone still images - Requirements and guidelines (ITU Recommendation T.81 / ISO 10918-1)](https://www.w3.org/Graphics/JPEG/itu-t81.pdf) by the International Telecommunication Union (ITU), the International Organization for Standardization (ISO), and the International Electrotechnical Commission (IEC), 1992
