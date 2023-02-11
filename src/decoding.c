@@ -1,7 +1,6 @@
 #include "bitstream.h"
 #include "decoding.h"
 #include "hufftree.h"
-#include "macros.h"
 #include "image.h"
 #include "jpeg.h"
 
@@ -38,15 +37,20 @@ static inline int decode_mcu_value(unsigned size, bitstream *str) {
 static int parse_coeff_matrix(int coeffMatrix[8][8], const jpeg_info *info, component_data componentData, bitstream *str, int *dcCoeff) {
     int coeffVector[64] = {0};
 
-    const huffnode *huffTrees  = info->huffTrees[componentData.hTreeId];
     const unsigned char *quantTable = info->quantTables[componentData.qTableId];
 
-    unsigned size = hufftree_decode_next_symbol(huffTrees + CLASS_DC, str);
-    *dcCoeff += decode_mcu_value(size, str);
+    {
+        const huffnode *huffTreeDc = &info->huffTrees[componentData.hTreeId][CLASS_DC];
 
-    coeffVector[0] = *dcCoeff * quantTable[0];
+        unsigned size = hufftree_decode_next_symbol(huffTreeDc, str);
+        *dcCoeff += decode_mcu_value(size, str);
+
+        coeffVector[0] = *dcCoeff * quantTable[0];
+    }
+
+    const huffnode *huffTreeAc = &info->huffTrees[componentData.hTreeId][CLASS_AC];
     for (unsigned i=1; i < 64; ++i) {
-        unsigned short value = hufftree_decode_next_symbol(huffTrees + CLASS_AC, str);
+        unsigned short value = hufftree_decode_next_symbol(huffTreeAc, str);
 
         if (value == 0x00)
             break;
