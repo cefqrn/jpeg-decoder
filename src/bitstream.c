@@ -4,10 +4,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define BYTE_WIDTH 8
-
 static void load_char(bitstream *stream) {
-    stream->_bitIndex = 0;
+    stream->_bitsLeft = 8;
 
     // ignore byte stuffing
     if (stream->_c == 0xFF)
@@ -22,17 +20,16 @@ static void load_char(bitstream *stream) {
 bitstream bitstream_create(FILE *fp) {
     return (bitstream){
         ._fp       = fp,
-        ._bitIndex = BYTE_WIDTH  // Make the bitstream_get_bit function load in a character when it's first called.
+        ._bitsLeft = 0
     };
 }
 
 // Returns the next bit of the file.
 unsigned bitstream_get_bit(bitstream *stream) {
-    // If all of the bits in the current char have been outputted, move to the next char.
-    if (stream->_bitIndex == BYTE_WIDTH)
+    if (stream->_bitsLeft == 0)
         load_char(stream);
 
-    return (stream->_c >> (BYTE_WIDTH - ++stream->_bitIndex)) & 0x1;
+    return (stream->_c >> --(stream->_bitsLeft)) & 0x1;
 }
 
 // Returns the next count bits of the file in the stream as an integer.

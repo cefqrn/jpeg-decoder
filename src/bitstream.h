@@ -6,7 +6,7 @@
 
 typedef struct {
     FILE          *_fp;
-    unsigned       _bitIndex;
+    unsigned       _bitsLeft;
     unsigned char  _c;
 } bitstream;
 
