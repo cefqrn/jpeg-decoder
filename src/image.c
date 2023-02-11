@@ -1,6 +1,5 @@
 #include "image.h"
 
-#include <stddef.h>
 #include <stdio.h>
 
 /*
@@ -11,18 +10,18 @@
 
     Displays colors with spaces and ANSI 24-bit color escape codes.
 */
-void image_print(pixel *img, size_t imageWidth, size_t imageHeight, size_t maxPrintWidth, size_t maxPrintHeight, size_t pixelWidth) {
+void image_print(const pixel *img, unsigned imageWidth, unsigned imageHeight, unsigned maxPrintWidth, unsigned maxPrintHeight, unsigned pixelWidth) {
     maxPrintHeight = maxPrintHeight < imageHeight ? maxPrintHeight : imageHeight;
 
-    for (size_t y=0; y < maxPrintHeight; ++y) {
-        for (size_t x=0; x < imageWidth && x * pixelWidth < maxPrintWidth; ++x) {
+    for (unsigned y=0; y < maxPrintHeight; ++y) {
+        for (unsigned x=0; x < imageWidth && x * pixelWidth < maxPrintWidth; ++x) {
             char color[64];
 
             pixel p = img[y * imageWidth + x];
             snprintf(color, 64, "\x1b[48;2;%u;%u;%um", p.RGB.R, p.RGB.G, p.RGB.B);
 
             printf("%s", color);
-            for (size_t i=0; i < pixelWidth; ++i) {
+            for (unsigned i=0; i < pixelWidth; ++i) {
                 putchar(' ');
             }
         }
@@ -37,9 +36,9 @@ static inline double clamp(double n) {
 }
 
 // Convert an image in place from YCbCr to RGB.
-void image_ycbcr_to_rgb(pixel *img, size_t width, size_t height) {
-    for (size_t y=0; y < height; ++y) {
-        for (size_t x=0; x < width; ++x) {
+void image_ycbcr_to_rgb(pixel *img, unsigned width, unsigned height) {
+    for (unsigned y=0; y < height; ++y) {
+        for (unsigned x=0; x < width; ++x) {
             pixel prev = img[y * width + x];
 
             img[y * width + x] = (pixel){
@@ -52,9 +51,9 @@ void image_ycbcr_to_rgb(pixel *img, size_t width, size_t height) {
 }
 
 // Convert an image in place from RGB to YCbCr.
-void image_rgb_to_ycbcr(pixel *img, size_t width, size_t height) {
-    for (size_t y=0; y < height; ++y) {
-        for (size_t x=0; x < width; ++x) {
+void image_rgb_to_ycbcr(pixel *img, unsigned width, unsigned height) {
+    for (unsigned y=0; y < height; ++y) {
+        for (unsigned x=0; x < width; ++x) {
             pixel prev = img[y * width + x];
 
             img[y * width + x] = (pixel){

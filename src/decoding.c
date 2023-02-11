@@ -73,8 +73,8 @@ static int parse_coeff_matrix(int coeffMatrix[8][8], const jpeg_info *info, comp
     return 0;
 }
 
-static float idct(int coeffMatrix[8][8], unsigned x, unsigned y) {
-    float sum = 0;
+static double idct(const int coeffMatrix[8][8], unsigned x, unsigned y) {
+    double sum = 0;
     for (unsigned u=0; u < 8; ++u) {
         for (unsigned v=0; v < 8; ++v) { 
             sum += coeffMatrix[v][u] * IDCT_TABLE[u][x] * IDCT_TABLE[v][y];

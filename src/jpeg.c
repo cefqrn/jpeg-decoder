@@ -54,7 +54,7 @@ int jpeg_read_info(jpeg_info *info, FILE *fp) {
     Read the pixel values of the image into img.
     Returns 0 on success and -1 on failure.
 */
-int jpeg_read_image(pixel *img, jpeg_info *info, FILE *fp) {
+int jpeg_read_image(pixel *img, const jpeg_info *info, FILE *fp) {
     bitstream stream = bitstream_create(fp);
 
     int dcCoeffs[3] = {0};
