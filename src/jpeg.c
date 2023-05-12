@@ -8,6 +8,7 @@
 
 #include <limits.h>
 #include <stddef.h>
+#include <math.h>
 
 #define CHAR_WIDTH  8
 #define MARKER_SIZE 2
@@ -19,7 +20,7 @@
     jpeg_free must be called to free the memory allocated in info.
     Returns 0 on success and -1 on failure.
 */
-int jpeg_read_info(jpeg_info *info, FILE *fp) {
+int jpeg_read_info(jpeg_info *jpegInfo, scan_info *scanInfo, FILE *fp) {
     // File must start with FFD8
     if (READ_WORD(fp) != SOI)
         return -1;
@@ -38,11 +39,11 @@ int jpeg_read_info(jpeg_info *info, FILE *fp) {
             return -1;
 
         switch (marker) {
-            case APP0: parse_APP0(info, data);        break;
-            case SOF0: parse_SOF0(info, data);        break;
-            case DHT:  parse_DHT(info, data, length); break;
-            case DQT:  parse_DQT(info, data, length); break;
-            case SOS:  parse_SOS(info, data);         break;
+            case APP0: parse_APP0(jpegInfo, data);         break;
+            case SOF0: parse_SOF0(jpegInfo, data);         break;
+            case DHT:  parse_DHT(jpegInfo, data, length);  break;
+            case DQT:  parse_DQT(jpegInfo, data, length);  break;
+            case SOS:  parse_SOS(scanInfo, jpegInfo, data); break;
             default:;  // All other markers are ignored.
         }
     } while (marker != SOS);
@@ -52,41 +53,32 @@ int jpeg_read_info(jpeg_info *info, FILE *fp) {
 
 /*
     Read the pixel values of the image into img.
-    Returns 0 on success and -1 on failure.
 */
-int jpeg_read_image(pixel *img, const jpeg_info *info, FILE *fp) {
+void jpeg_read_image(pixel *img, const jpeg_info *jpegInfo, const scan_info *scanInfo, FILE *fp) {
     bitstream stream = bitstream_create(fp);
 
-    int dcCoeffs[3] = {0};
+    unsigned MCUWidth = 8 * scanInfo->maxHSamplingFactor;
+    unsigned MCUHeight = 8 * scanInfo->maxVSamplingFactor;
 
-    // Note: this assumes both Cb and Cr have the same sampling factors.
-    unsigned hSamplingFactor = 1;
-    unsigned vSamplingFactor = 1;
-    if (info->componentCount == 3) {
-        hSamplingFactor = info->componentData[0].hSamplingFactor / info->componentData[1].hSamplingFactor;
-        vSamplingFactor = info->componentData[0].vSamplingFactor / info->componentData[1].vSamplingFactor;
-    }
-    
-    for (int y=0; y < info->height; y += 8 * vSamplingFactor) {
-        for (int x=0; x < info->width; x += 8 * hSamplingFactor) {
-            for (unsigned v=0; v < vSamplingFactor; ++v) {
-                for (unsigned h=0; h < hSamplingFactor; ++h) {
-                    if (decode_data_unit(img, info, &stream, info->componentData[0], &dcCoeffs[0], x + 8*h, y + 8*v, 1, 1))
-                        return -1;
+    unsigned componentCount = scanInfo->componentCount;
+    unsigned short imageWidth = jpegInfo->width;
+    unsigned short imageHeight = jpegInfo->height;
+
+    int dcCoefficients[4] = {0};
+    for (unsigned y=0; y < imageHeight; y += MCUHeight) {
+        for (unsigned x=0; x < imageWidth; x += MCUWidth) {
+            for (unsigned i=0; i < componentCount; ++i) {
+                unsigned HSamplingFactor = jpegInfo->componentInfo[scanInfo->componentInfo[i].componentID].HSamplingFactor;
+                unsigned VSamplingFactor = jpegInfo->componentInfo[scanInfo->componentInfo[i].componentID].VSamplingFactor;
+
+                for (unsigned v=0; v < VSamplingFactor; ++v) {
+                    for (unsigned h=0; h < HSamplingFactor; ++h) {
+                        decode_data_unit(img, jpegInfo, scanInfo->componentInfo[i], &stream, dcCoefficients + i, x + 8*h, y + 8*v, scanInfo->maxHSamplingFactor / HSamplingFactor, scanInfo->maxVSamplingFactor / VSamplingFactor);
+                    }
                 }
-            }
-
-            if (info->componentCount == 3) {
-                if (decode_data_unit(img, info, &stream, info->componentData[1], &dcCoeffs[1], x, y, hSamplingFactor, vSamplingFactor))
-                    return -1;
-
-                if (decode_data_unit(img, info, &stream, info->componentData[2], &dcCoeffs[2], x, y, hSamplingFactor, vSamplingFactor))
-                    return -1;
             }
         }
     }
-
-    return 0;
 }
 
 /*
@@ -95,7 +87,7 @@ int jpeg_read_image(pixel *img, const jpeg_info *info, FILE *fp) {
 void jpeg_free(jpeg_info *info) {
     for (size_t i=0; i < 2; ++i) {
         for (size_t j=0; j < 2; ++j) {
-            hufftree_destroy(&info->huffTrees[i][j]);
+            hufftree_destroy(&info->huffmanTables[i][j]);
         }
     }
 }

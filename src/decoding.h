@@ -7,6 +7,6 @@
 
 #include <stddef.h>
 
-int decode_data_unit(pixel *im, const jpeg_info *info, bitstream *str, component_data componentData, int *dcCoeff, unsigned globalX, unsigned globalY, unsigned hSamplingFactor, unsigned vSamplingFactor);
+void decode_data_unit(pixel *im, const jpeg_info *info, struct scan_component_info componentInfo, bitstream *str, int *dcCoeff, unsigned globalX, unsigned globalY, unsigned HStretchFactor, unsigned VStretchFactor);
 
 #endif

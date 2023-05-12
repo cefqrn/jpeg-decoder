@@ -18,35 +18,31 @@ int main(int argc, char *argv[]) {
         goto FAIL;
     }
 
-    jpeg_info info;
-    if (jpeg_read_info(&info, fp)) {
+    jpeg_info jpegInfo;
+    scan_info scanInfo;
+    if (jpeg_read_info(&jpegInfo, &scanInfo, fp)) {
         puts("Could not parse file.");
-        goto FAIL_READ_INFO;
+        goto FAIL_AFTER_READ_INFO;
     }
 
-    pixel *im = malloc(image_size(info.width, info.height));
+    pixel *im = malloc(image_size(jpegInfo.width, jpegInfo.height));
     if (im == NULL) {
         puts("Could not allocate memory for the image.");
-        goto FAIL_READ_INFO;
+        goto FAIL_AFTER_READ_INFO;
     }
 
-    if (jpeg_read_image(im, &info, fp)) {
-        puts("Could not read image.");
-        goto FAIL_ALLOCATED_IMAGE;
-    };
+    jpeg_read_image(im, &jpegInfo, &scanInfo, fp);
 
-    image_ycbcr_to_rgb(im, info.width, info.height);
-    image_print(im, info.width, info.height, 200, info.height, 2);
+    image_ycbcr_to_rgb(im, jpegInfo.width, jpegInfo.height);
+    image_print(im, jpegInfo.width, jpegInfo.height, 200, jpegInfo.height, 2);
 
     free(im);
-    jpeg_free(&info);
+    jpeg_free(&jpegInfo);
 
     return EXIT_SUCCESS;
 
-FAIL_ALLOCATED_IMAGE:
-    free(im);
-FAIL_READ_INFO:
-    jpeg_free(&info);
+FAIL_AFTER_READ_INFO:
+    jpeg_free(&jpegInfo);
 FAIL:
     return EXIT_FAILURE;
 }

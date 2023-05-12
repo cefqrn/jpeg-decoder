@@ -32,13 +32,13 @@ static inline int decode_coefficient(unsigned size, unsigned bits) {
     return bits >> (size - 1) ? bits : (long)bits - (1 << size) + 1;
 }
 
-static int parse_coeff_matrix(int coeffMatrix[8][8], const jpeg_info *info, component_data componentData, bitstream *str, int *dcCoeff) {
+static void decode_coefficient_matrix(int coeffMatrix[8][8], const jpeg_info *jpegInfo, struct scan_component_info componentInfo, bitstream *str, int *dcCoeff) {
     int coeffVector[64] = {0};
 
-    const unsigned char *quantTable = info->quantTables[componentData.qTableId];
+    const unsigned char *quantTable = jpegInfo->quantizationTables[jpegInfo->componentInfo[componentInfo.componentID].quantizationTableID];
 
     {
-        const huffnode *huffTreeDc = &info->huffTrees[componentData.hTreeId][CLASS_DC];
+        const huffnode *huffTreeDc = &jpegInfo->huffmanTables[CLASS_DC][componentInfo.DCHuffmanTableID];
 
         unsigned size = hufftree_decode_next_symbol(huffTreeDc, str);
         *dcCoeff += decode_coefficient(size, bitstream_get_bits(str, size));
@@ -46,20 +46,23 @@ static int parse_coeff_matrix(int coeffMatrix[8][8], const jpeg_info *info, comp
         coeffVector[0] = *dcCoeff * quantTable[0];
     }
 
-    const huffnode *huffTreeAc = &info->huffTrees[componentData.hTreeId][CLASS_AC];
+    const huffnode *huffTreeAc = &jpegInfo->huffmanTables[CLASS_AC][componentInfo.ACHuffmanTableID];
     for (unsigned i=1; i < 64; ++i) {
         unsigned short value = hufftree_decode_next_symbol(huffTreeAc, str);
 
-        if (value == 0x00)
-            break;
+        unsigned skipped_zeros = value >> 4;
+        unsigned coefficient_size = value & 0x0f;
 
-        i += value >> 4;  // Skip zeroes
+        i += skipped_zeros;
+        if (coefficient_size == 0) {
+            if (skipped_zeros == 0xf) {
+                continue;
+            } else {
+                break;
+            }
+        }
 
-        if (i >= 64)
-            return -1;
-
-        unsigned size = value & 0xF;
-        coeffVector[i] = decode_coefficient(size, bitstream_get_bits(str, size)) * quantTable[i];
+        coeffVector[i] = decode_coefficient(coefficient_size, bitstream_get_bits(str, coefficient_size)) * quantTable[i];
     }
 
     for (unsigned x=0; x < 8; ++x) {
@@ -67,8 +70,6 @@ static int parse_coeff_matrix(int coeffMatrix[8][8], const jpeg_info *info, comp
             coeffMatrix[x][y] = coeffVector[ZIGZAG[x][y]];
         }
     }
-
-    return 0;
 }
 
 static double idct(const int coeffMatrix[8][8], unsigned x, unsigned y) {
@@ -86,29 +87,26 @@ static inline int clamp(int n, int min, int max) {
     return n < min ? min : n > max ? max : n;
 }
 
-int decode_data_unit(pixel *im, const jpeg_info *info, bitstream *str, component_data componentData, int *dcCoeff, unsigned globalX, unsigned globalY, unsigned hSamplingFactor, unsigned vSamplingFactor) {
+void decode_data_unit(pixel *im, const jpeg_info *info, struct scan_component_info componentInfo, bitstream *str, int *dcCoeff, unsigned globalX, unsigned globalY, unsigned HStretchFactor, unsigned VStretchFactor) {
     int coeffMatrix[8][8];
-    if (parse_coeff_matrix(coeffMatrix, info, componentData, str, dcCoeff))
-        return -1;
+    decode_coefficient_matrix(coeffMatrix, info, componentInfo, str, dcCoeff);
 
     unsigned short imageWidth = info->width;
     unsigned short imageHeight = info->height;
 
-    for (unsigned x=0; x < 8 && (unsigned long)globalX + x * hSamplingFactor < imageWidth; ++x) {
-        for (unsigned y=0; y < 8 && (unsigned long)globalY + y * vSamplingFactor < imageHeight; ++y) {
+    for (unsigned x=0; x < 8 && (unsigned long)globalX + x * HStretchFactor < imageWidth; ++x) {
+        for (unsigned y=0; y < 8 && (unsigned long)globalY + y * VStretchFactor < imageHeight; ++y) {
             unsigned char value = clamp(lround(idct(coeffMatrix, x, y)) + 128, 0, 255);
 
-            unsigned short pixelX = globalX + x * hSamplingFactor;
-            unsigned short pixelY = globalY + y * vSamplingFactor;
+            unsigned short pixelX = globalX + x * HStretchFactor;
+            unsigned short pixelY = globalY + y * VStretchFactor;
 
-            for (unsigned h=0; h < hSamplingFactor && (unsigned long)globalX + h < imageWidth; ++h) {
-                for (unsigned v=0; v < vSamplingFactor && (unsigned long)globalY + v < imageHeight; ++v) {
+            for (unsigned h=0; h < HStretchFactor && (unsigned long)globalX + h < imageWidth; ++h) {
+                for (unsigned v=0; v < VStretchFactor && (unsigned long)globalY + v < imageHeight; ++v) {
                     // Component id is one above our component index.
-                    im[(pixelY + v) * imageWidth + (pixelX + h)].data[componentData.id - 1] = value;
+                    im[(pixelY + v) * imageWidth + (pixelX + h)].data[componentInfo.componentID - 1] = value;
                 }
             }
         }
     }
-
-    return 0;
 }
