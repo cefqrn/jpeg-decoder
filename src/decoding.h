@@ -7,6 +7,6 @@
 
 #include <stddef.h>
 
-int decode_MCU(pixel *im, const jpeg_info *info, bitstream *str, component_data componentData, int *dcCoeff, unsigned McuX, unsigned McuY, unsigned hSamplingFactor, unsigned vSamplingFactor);
+int decode_data_unit(pixel *im, const jpeg_info *info, bitstream *str, component_data componentData, int *dcCoeff, unsigned globalX, unsigned globalY, unsigned hSamplingFactor, unsigned vSamplingFactor);
 
 #endif

@@ -71,16 +71,16 @@ int jpeg_read_image(pixel *img, const jpeg_info *info, FILE *fp) {
         for (int x=0; x < info->width; x += 8 * hSamplingFactor) {
             for (unsigned v=0; v < vSamplingFactor; ++v) {
                 for (unsigned h=0; h < hSamplingFactor; ++h) {
-                    if (decode_MCU(img, info, &stream, info->componentData[0], &dcCoeffs[0], x + 8*h, y + 8*v, 1, 1))
+                    if (decode_data_unit(img, info, &stream, info->componentData[0], &dcCoeffs[0], x + 8*h, y + 8*v, 1, 1))
                         return -1;
                 }
             }
 
             if (info->componentCount == 3) {
-                if (decode_MCU(img, info, &stream, info->componentData[1], &dcCoeffs[1], x, y, hSamplingFactor, vSamplingFactor))
+                if (decode_data_unit(img, info, &stream, info->componentData[1], &dcCoeffs[1], x, y, hSamplingFactor, vSamplingFactor))
                     return -1;
 
-                if (decode_MCU(img, info, &stream, info->componentData[2], &dcCoeffs[2], x, y, hSamplingFactor, vSamplingFactor))
+                if (decode_data_unit(img, info, &stream, info->componentData[2], &dcCoeffs[2], x, y, hSamplingFactor, vSamplingFactor))
                     return -1;
             }
         }

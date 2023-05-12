@@ -28,10 +28,8 @@ static const double IDCT_TABLE[8][8] = {
     {0.195090, -0.555570,  0.831470, -0.980785,  0.980785, -0.831470,  0.555570, -0.195090}
 };
 
-static inline int decode_mcu_value(unsigned size, bitstream *str) {
-    unsigned short bits = bitstream_get_bits(str, size);
-
-    return !(bits >> (size - 1)) ? bits + 1 - (1 << size) : bits;
+static inline int decode_coefficient(unsigned size, unsigned bits) {
+    return bits >> (size - 1) ? bits : (long)bits - (1 << size) + 1;
 }
 
 static int parse_coeff_matrix(int coeffMatrix[8][8], const jpeg_info *info, component_data componentData, bitstream *str, int *dcCoeff) {
@@ -43,7 +41,7 @@ static int parse_coeff_matrix(int coeffMatrix[8][8], const jpeg_info *info, comp
         const huffnode *huffTreeDc = &info->huffTrees[componentData.hTreeId][CLASS_DC];
 
         unsigned size = hufftree_decode_next_symbol(huffTreeDc, str);
-        *dcCoeff += decode_mcu_value(size, str);
+        *dcCoeff += decode_coefficient(size, bitstream_get_bits(str, size));
 
         coeffVector[0] = *dcCoeff * quantTable[0];
     }
@@ -61,7 +59,7 @@ static int parse_coeff_matrix(int coeffMatrix[8][8], const jpeg_info *info, comp
             return -1;
 
         unsigned size = value & 0xF;
-        coeffVector[i] = decode_mcu_value(size, str) * quantTable[i];
+        coeffVector[i] = decode_coefficient(size, bitstream_get_bits(str, size)) * quantTable[i];
     }
 
     for (unsigned x=0; x < 8; ++x) {
@@ -88,7 +86,7 @@ static inline int clamp(int n, int min, int max) {
     return n < min ? min : n > max ? max : n;
 }
 
-int decode_MCU(pixel *im, const jpeg_info *info, bitstream *str, component_data componentData, int *dcCoeff, unsigned McuX, unsigned McuY, unsigned hSamplingFactor, unsigned vSamplingFactor) {
+int decode_data_unit(pixel *im, const jpeg_info *info, bitstream *str, component_data componentData, int *dcCoeff, unsigned globalX, unsigned globalY, unsigned hSamplingFactor, unsigned vSamplingFactor) {
     int coeffMatrix[8][8];
     if (parse_coeff_matrix(coeffMatrix, info, componentData, str, dcCoeff))
         return -1;
@@ -96,17 +94,17 @@ int decode_MCU(pixel *im, const jpeg_info *info, bitstream *str, component_data 
     unsigned short imageWidth = info->width;
     unsigned short imageHeight = info->height;
 
-    for (unsigned x=0; x < 8 && McuX + x * hSamplingFactor < imageWidth; ++x) {
-        for (unsigned y=0; y < 8 && McuY + y * vSamplingFactor < imageHeight; ++y) {
+    for (unsigned x=0; x < 8 && (unsigned long)globalX + x * hSamplingFactor < imageWidth; ++x) {
+        for (unsigned y=0; y < 8 && (unsigned long)globalY + y * vSamplingFactor < imageHeight; ++y) {
             unsigned char value = clamp(lround(idct(coeffMatrix, x, y)) + 128, 0, 255);
 
-            unsigned short globalX = McuX + x * hSamplingFactor;
-            unsigned short globalY = McuY + y * vSamplingFactor;
+            unsigned short pixelX = globalX + x * hSamplingFactor;
+            unsigned short pixelY = globalY + y * vSamplingFactor;
 
-            for (unsigned h=0; h < hSamplingFactor && globalX + h < imageWidth; ++h) {
-                for (unsigned v=0; v < vSamplingFactor && globalY + v < imageHeight; ++v) {
+            for (unsigned h=0; h < hSamplingFactor && (unsigned long)globalX + h < imageWidth; ++h) {
+                for (unsigned v=0; v < vSamplingFactor && (unsigned long)globalY + v < imageHeight; ++v) {
                     // Component id is one above our component index.
-                    im[(globalY + v) * imageWidth + (globalX + h)].data[componentData.id - 1] = value;
+                    im[(pixelY + v) * imageWidth + (pixelX + h)].data[componentData.id - 1] = value;
                 }
             }
         }
