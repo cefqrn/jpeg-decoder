@@ -3,7 +3,7 @@ SHELL=/bin/sh
 .PHONY: clean remake
 
 CC = gcc
-CFLAGS=-g -Wall -Wextra -O3
+CFLAGS=-g -Wall -Wextra -Wshadow -pedantic -O3 -std=c99
 LDFLAGS=
 
 bindir=bin
