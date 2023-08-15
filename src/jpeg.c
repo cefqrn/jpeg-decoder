@@ -31,21 +31,27 @@ int jpeg_read_info(jpeg_info *jpegInfo, scan_info *scanInfo, FILE *fp) {
     SegmentMarker marker;
     do {
         marker = READ_WORD(fp);
-        unsigned short length = READ_WORD(fp) - MARKER_SIZE;
 
-        unsigned char data[USHRT_MAX]; 
-
-        if (fread(data, sizeof *data, length, fp) != length)
+        unsigned short segmentLength = READ_WORD(fp);
+        if (segmentLength < 2)
             return -1;
 
+        unsigned short dataLength = segmentLength - MARKER_SIZE;
+        unsigned char data[USHRT_MAX];
+        if (fread(data, sizeof *data, dataLength, fp) != dataLength)
+            return -1;
+
+        int errorCode = 0;
         switch (marker) {
-            case APP0: parse_APP0(jpegInfo, data);         break;
-            case SOF0: parse_SOF0(jpegInfo, data);         break;
-            case DHT:  parse_DHT(jpegInfo, data, length);  break;
-            case DQT:  parse_DQT(jpegInfo, data, length);  break;
-            case SOS:  parse_SOS(scanInfo, jpegInfo, data); break;
+            case SOF0: errorCode = parse_SOF0(jpegInfo, dataLength, data);          break;
+            case DHT:  errorCode = parse_DHT(jpegInfo, dataLength, data);           break;
+            case DQT:  errorCode = parse_DQT(jpegInfo, dataLength, data);           break;
+            case SOS:  errorCode = parse_SOS(scanInfo, jpegInfo, dataLength, data); break;
             default:;  // All other markers are ignored.
         }
+
+        if (errorCode)
+            return errorCode;
     } while (marker != SOS);
 
     return 0;

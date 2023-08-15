@@ -14,11 +14,6 @@ typedef struct {
     huffnode       huffmanTables[2][4];       // Huffman tables used in decoding
     unsigned short width;                     // Width of the image (max is 65535)
     unsigned short height;                    // Height of the image (max is 65535)
-    unsigned short HPixelDensity;             // Density used in printing
-    unsigned short VPixelDensity;             // Density used in printing
-    unsigned char  pixelDensityUnit;          // Unit for the horizontal and vertical pixel densities
-    unsigned char  versionMajor;
-    unsigned char  versionMinor;
     unsigned char  precision;
 } jpeg_info;
 

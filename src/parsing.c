@@ -10,25 +10,19 @@
 
 #define GET_WORD(data, index) (data[index] << CHAR_WIDTH) + data[index + 1]
 
-void parse_APP0(jpeg_info *info, const unsigned char *data) {
-    char identifier[5];
-    strncpy(identifier, (char *)data, 5);
+int parse_SOF0(jpeg_info *info, unsigned short length, const unsigned char *data) {
+    if (length < 6)
+        return -1;
 
-    if (strcmp(identifier, "JFIF") == 0) {
-        info->versionMajor     = data[5];
-        info->versionMinor     = data[6];
-        info->pixelDensityUnit = data[7];
-        info->HPixelDensity    = GET_WORD(data, 8);
-        info->VPixelDensity    = GET_WORD(data, 10);
-    }
-}
-
-void parse_SOF0(jpeg_info *info, const unsigned char *data) {
     info->precision = data[0];
     info->height = GET_WORD(data, 1);
     info->width = GET_WORD(data, 3);
 
     unsigned componentCount = data[5];
+    unsigned expectedLength = 6 + componentCount*3;
+    if (length != expectedLength)
+        return -1;
+
     for (unsigned i=0; i < componentCount; ++i) {
         unsigned componentID = data[6 + i*3];
         info->componentInfo[componentID] = (struct jpeg_component_info){
@@ -37,11 +31,15 @@ void parse_SOF0(jpeg_info *info, const unsigned char *data) {
             .quantizationTableID = data[8 + i*3]
         };
     }
+
+    return 0;
 }
 
-void parse_DHT(jpeg_info *info, const unsigned char *data, unsigned short length) {
-    size_t offset = 0;
+int parse_DHT(jpeg_info *info, unsigned short length, const unsigned char *data) {
+    if (length < 1)
+        return -1;
 
+    size_t offset = 0;
     do {
         unsigned class = data[offset] >> 4;
         unsigned id    = data[offset] & 0x0f;
@@ -50,24 +48,33 @@ void parse_DHT(jpeg_info *info, const unsigned char *data, unsigned short length
 
         offset += hufftree_parse(&info->huffmanTables[class][id], data + offset);
     } while (offset < length);
+
+    return 0;
 }
 
-void parse_DQT(jpeg_info *info, const unsigned char *data, unsigned short length) {
+int parse_DQT(jpeg_info *info, unsigned short length, const unsigned char *data) {
+    if (!length || length % (64 + 1) != 0)
+        return -1;
+
     size_t offset = 0;
-    
     do {
         unsigned id = data[offset++] & 0x1;
         for (unsigned i=0; i < 64; ++i)
             info->quantizationTables[id][i] = data[offset++];
-    } while (offset < length);
+    } while (length -= 64 + 1);
+
+    return 0;
 }
 
 static inline unsigned max(unsigned a, unsigned b) {
     return a > b ? a : b;
 }
 
-void parse_SOS(scan_info *scanInfo, const jpeg_info *jpegInfo, const unsigned char *data) {
+int parse_SOS(scan_info *scanInfo, const jpeg_info *jpegInfo, unsigned short length, const unsigned char *data) {
     unsigned componentCount = data[0];
+    unsigned expectedLength = 1 + componentCount*2 + 3;
+    if (length != expectedLength)
+        return -1;
 
     unsigned maxHSamplingFactor = 0;
     unsigned maxVSamplingFactor = 0;
@@ -89,4 +96,6 @@ void parse_SOS(scan_info *scanInfo, const jpeg_info *jpegInfo, const unsigned ch
 
     scanInfo->maxHSamplingFactor = maxHSamplingFactor;
     scanInfo->maxVSamplingFactor = maxVSamplingFactor;
+
+    return 0;
 }
