@@ -12,9 +12,9 @@ typedef struct {
     } componentInfo[256];
     unsigned char  quantizationTables[4][64]; // Quantization tables used in decoding
     huffnode       huffmanTables[2][4];       // Huffman tables used in decoding
-    unsigned short width;                     // Width of the image (max is 65535)
-    unsigned short height;                    // Height of the image (max is 65535)
-    unsigned char  precision;
+    unsigned short width;                     // Width of the image (between 1 and 65535)
+    unsigned short height;                    // Height of the image (between 1 and 65535)
+    unsigned char  precision;                 // Sample precision in bits (currently only 8 is supported)
 } jpeg_info;
 
 typedef struct {
