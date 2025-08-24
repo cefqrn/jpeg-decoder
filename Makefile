@@ -4,7 +4,7 @@ SHELL=/bin/sh
 
 CC = gcc
 CFLAGS=-g -Wall -Wextra -Wshadow -pedantic -O3 -std=c99
-LDFLAGS=
+LDFLAGS=-lm
 
 bindir=bin
 libdir=obj
